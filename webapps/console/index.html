@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>Footprint user</title>
+  <link rel="stylesheet" href="styles/main.css"/>
+</head>
+<body>
+  <h1>Footprint user</h1>
+  <p id="login">
+    You are not logged in.
+    <button>Log in</button>
+  </p>
+  <p id="logout">
+    You are logged in as <span id="user"></span>.
+    <button>Log out</button>
+  </p>
+  <div><label for="data">data</label>: <textarea id="data" rows="25" style="width:100%">&lt;s&gt; &lt;p&gt; &lt;o&gt; .</textarea><img id="image" src= alt="" /></div>
+  <span class="wide"><label for="location">location</label>: <input id="location" value="https://ericp.solid.community/public/test-folder/foo.ttl"></input><br/></span>
+  <label for="media-type">media type</label>: <input id="media-type" value="text/turtle"></input>
+  <label for="slug">slug</label>: <input id="slug"></input>
+  <!-- select id="media-type">
+    <option value="HEAD">HEAD</option>
+    <option value="text/turtle" selected="selected">text/turtle</option>
+    <option value="text/turtle">text/turtle</option>
+  </select -->
+  <label for="method">method</label>: <select id="method">
+    <option value="HEAD">HEAD</option>
+    <option value="GET" selected="selected">GET</option>
+    <option value="PUT">PUT</option>
+    <option value="POST">POST</option>
+    <option value="DELETE">DELETE</option>
+    <option value="STOMP">STOMP</option>
+  </select>
+  <button id="fetch">fetch</button>
+  <pre id="result"></pre>
+
+  <script src="scripts/jquery.js"></script>
+  <script src="scripts/solid-auth-client.bundle.js"></script>
+  <script src="scripts/rdflib.min.js"></script>
+  <script src="scripts/main.js"></script>
+</body>
+</html>
