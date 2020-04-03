@@ -92,23 +92,32 @@ const [Method, MediaType, Location, Data, Slug, Image, Directory, Result]
       = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#directory'), $('#result')]
 
 showData() // hide image and directory table
+const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
+  const [attr, val] = pair.split(/=/).map(decodeURIComponent)
+  acc[attr] = val
+  return acc
+}, {})
+if ('location' in Args)
+  process(Args.location)
 
 $('#fetch').click(evt => {
   const members = $('input[name=member]:checked').prop("checked", false).get()
   if (members.length > 0)
     members.map(m => process(m.getAttribute('value')))
   else
-    process(Location.val().split('#')[0].replace(/^</, '').replace(/>$/, ''))
+    process(Location.val())
 })
 
 async function process (docuri) {
+  docuri = docuri.replace(/^</, '').replace(/>$/, '').split('#')[0] // remove <>s and #
+  window.history.pushState( {} , 'Footprint user ' + docuri, '?location=' +  encodeURIComponent(docuri))
+
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
   // fetcher.timeout = 30000
   // ([Location, Data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
   MediaType.removeClass('error');
   Data.removeClass('error');
-
 
   try {
     let response
@@ -146,14 +155,15 @@ async function process (docuri) {
       l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
         && l.rels.rel === 'type'
     ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
-      const base = new URL(docuri)
       const td = elt => $('<td/>').append(elt)
       Directory.empty().append(parseContainer(store, docuri.length).map(
         m => $('<tr/>').append(td($('<input/>', {
           type: 'checkbox',
           name: 'member',
-          value: new URL(m.name, base).href
-        })), (["name", "role", "media", "size", "modified"]).map(
+          value: new URL(m.name, docuri).href
+        })), td($('<a/>', {
+          href: `?location=${encodeURIComponent(new URL(m.name, docuri).href)}`
+        }).text(m.name)), (["role", "media", "size", "modified"]).map(
           k => td(m[k])
         ))
       ))
