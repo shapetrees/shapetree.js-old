@@ -1,4 +1,15 @@
-const FOAF = $rdf.Namespace('http://xmlns.com/foaf/0.1/');
+const ns = {
+  link: $rdf.Namespace('http://www.w3.org/2007/ont/link#'),
+  http: $rdf.Namespace('http://www.w3.org/2007/ont/http#'),
+  httph: $rdf.Namespace('http://www.w3.org/2007/ont/httph#'),  // headers
+  rdf: $rdf.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#'),
+  rdfs: $rdf.Namespace('http://www.w3.org/2000/01/rdf-schema#'),
+  dc: $rdf.Namespace('http://purl.org/dc/elements/1.1/'),
+  dcterms: $rdf.Namespace('http://purl.org/dc/terms/'),
+  ldp: $rdf.Namespace('http://www.w3.org/ns/ldp#'),
+  media: $rdf.Namespace('http://www.w3.org/ns/iana/media-types/'),
+  posix: $rdf.Namespace('http://www.w3.org/ns/posix/stat#'),
+}
 
 // Log the user in and out on click
 const popupUri = 'popup.html';
@@ -77,79 +88,120 @@ const RdfTypes = ['text/turtle', 'application/json']
 const NeedsBody = ['PUT', 'POST']
 const NeedsSlug = ['POST']
 
-$('#fetch').click(async evt => {
-  const [method, mediaType, location, data, slug, image, result]
-        = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#result')]
+const [method, mediaType, Location, data, slug, image, directory, result]
+      = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#directory'), $('#result')]
+
+$('#fetch').click(evt => {
+  const members = $('input[name=member]:checked').prop("checked", false).get()
+  if (members.length > 0)
+    members.map(m => process(m.getAttribute('value')))
+  else
+    process(Location.val().split('#')[0].replace(/^</, '').replace(/>$/, ''))
+})
+
+async function process (docuri) {
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
   // fetcher.timeout = 30000
-  // ([location, data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
+  // ([Location, data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
   mediaType.removeClass('error');
   data.removeClass('error');
 
-  const docuri = location.val().split('#')[0].replace(/^</, '').replace(/>$/, '')
 
   try {
-    if (method.val() === 'GET') {
-      // callers may invoke either webOperation or load (which calls pendingFetchPromise)
-      const response = await fetcher.load(docuri)
-      console.warn(response)
-      for (var pair of response.headers.entries())
-        console.log(pair[0]+ ': '+ pair[1]);
-
-      const ct = fetcher.store.sym('http://www.w3.org/2007/ont/httph#content-type')
-      const linkResp = fetcher.store.sym('http://www.w3.org/2007/ont/link#response')
-      const contentType = fetcher.store.anyStatementMatching(
-        fetcher.store.anyStatementMatching(response.req, linkResp).object, ct)
-            .object.value
-
-      mediaType.val(contentType)
-      if (contentType.startsWith('image/')) {
-        image.attr('src', docuri)
-        data.hide()
-        image.show()
-        $('#data').parent().click(hideImage)
-      } else {
-        data.val(response.responseText)
-        hideImage()
-      }
-      result.text(serialize(arcsOut(store, response.req), docuri))
-      const remainder = (({ responseText, req, ...o }) => o)(response)
-      console.assert(Object.keys(remainder).length === 0)
-    } else if (method.val() === 'STOMP') {
+    let response
+    if (method.val() === 'STOMP') {
+    } else if (method.val() === 'GET') {
+      // GET may be invoked by either webOperation or load (which
+      // calls pendingFetchPromise)
+      response = await fetcher.load(docuri)
     } else {
       const fetchOpts = Object.assign(
         {contentType: mediaType.val(), acceptString: mediaType.val() },
         NeedsBody.indexOf(method.val()) !== -1 ? {data: data.val()} : {},
         NeedsSlug.indexOf(method.val()) !== -1 ? {headers: {'Slug': slug.val()}} : {}
       )
-
-      const response = await fetcher.webOperation(method.val(), docuri, fetchOpts)
-      for (var pair of response.headers.entries())
-        console.log(pair[0]+ ': '+ pair[1]);
-
-      ([{name: 'content-type', elt: location},
-        {name: 'location', elt: location}]).forEach(tuple => {
-          const val = response.headers.get(tuple.name)
-          if (val !== null)
-            tuple.elt.val(val)
-        })
-      data.val(response.responseText)
-      result.text(JSON.stringify((({ responseText, ...o }) => o)(response), null, 2))
+      response = await fetcher.webOperation(method.val(), docuri, fetchOpts)
     }
+    const links = response.headers.get('link')
+          ? parseLinkHeader(response.headers.get('link'))
+          : null
+    // console.warn(response)
+
+    ([{name: 'content-type', elt: mediaType},
+      {name: 'location', elt: Location}]).forEach(tuple => {
+        const val = response.headers.get(tuple.name)
+        if (val !== null)
+          tuple.elt.val(val)
+      })
+    if (response.headers.get('content-type').startsWith('image/')) {
+      image.attr('src', docuri)
+      data.hide()
+      image.show()
+      directory.hide()
+      $('#data').prev().click(showData)
+    } else if (links && links.find(
+      l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
+        && l.rels.rel === 'type'
+    ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
+      const base = new URL(docuri)
+      directory.html(parseContainer(store).map(
+        m => $('<li/>').append($('<input/>', {
+          type: 'checkbox',
+          name: 'member',
+          value: new URL(m.name, base).href
+        }), Object.entries(m).map(
+          pair => `${pair[0]}:${pair[1]} `
+        ))
+      ))
+      data.hide()
+      image.hide()
+      directory.show()
+      data.val(response.responseText)
+      $('#data').prev().click(showData)
+
+      function parseContainer (store) {
+        const entries = store.match(null, ns.ldp('contains'), null).map(q => q.object)
+        return entries.map(s => ({
+          name: s.value.substr(docuri.length),
+          role: store.match(s, ns.rdf('type'), null).filter(q => q.object.value.startsWith(ns.ldp('').value)).map(q => q.object.value.substr(ns.ldp('').value.length)),
+          media: store.match(s, ns.rdf('type'), null).filter(q => q.object.value.startsWith(ns.media('').value)).map(q => q.object.value.substr(ns.media('').value.length).replace(/#.*$/, '')),
+          size: store.match(s, ns.posix('size'), null).map(q => q.object.value),
+          modified: store.match(s, ns.dcterms('modified'), null).map(q => q.object.value),
+        }))
+      }
+    } else {
+      data.val(response.responseText)
+      showData()
+    }
+
+    let resultText = ''
+    for (var pair of response.headers.entries())
+      resultText += ((pair[0] === 'link')
+                     ? (pair[0] + ': ' + JSON.stringify(parseLinkHeader(pair[1]), null, 2) + '\n')
+                     : (pair[0] + ': ' + pair[1] + '\n'))
+    if ('req' in response) {
+      resultText += serialize(arcsOut(store, response.req), docuri)
+      const remainder = (({ responseText, req, ...o }) => o)(response)
+      console.assert(Object.keys(remainder).length === 0)
+    } else {
+      resultText += JSON.stringify((({ responseText, ...o }) => o)(response), null, 2)
+    }
+    result.text(resultText)
   } catch (e) {
     console.warn(e);
     ([mediaType, data]).forEach(elt => elt.addClass('error'))
     data.val(e)
     mediaType.val('text/plain')
   }
+}
 
-  function hideImage (evt) {
-    data.show()
-    image.hide()
-    $('#data').parent().off('click', hideImage);
-  }
-});
+function showData (evt) {
+  data.show()
+  image.hide()
+  directory.hide()
+  $('#data').parent().off('click', showData);
+}
 
 function serialize (sts, base) {
   const store = $rdf.graph()
@@ -169,3 +221,14 @@ function arcsOut (store, node, seen = []) {
   return ret
 }
 
+function parseLinkHeader (linkHeaderString) {
+  return linkHeaderString.split(/,\s*(?=<)/).map(link => {
+    const [undefined, uri, relsString] = link.match(/^<([^>]+)>(;.*)$/)
+    const rels = { }
+    relsString.replace(/;\s*([^=]+)="([^"]+)"/g, function (a, b, c) {
+      rels[b] = c
+      return ''
+    })
+    return { uri, rels }
+  })
+}
