@@ -36,4 +36,6 @@ a:hover {
 .error { background-color: #fdd; }
 .wide { display: flex; flex-direction: row; }
 .wide input { flex: 1 }
+table { border-collapse: collapse; }
+td { border: thin solid black; padding: .1em .5em; }
 

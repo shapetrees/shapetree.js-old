@@ -91,6 +91,8 @@ const NeedsSlug = ['POST']
 const [Method, MediaType, Location, Data, Slug, Image, Directory, Result]
       = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#directory'), $('#result')]
 
+showData() // hide image and directory table
+
 $('#fetch').click(evt => {
   const members = $('input[name=member]:checked').prop("checked", false).get()
   if (members.length > 0)
@@ -134,42 +136,32 @@ async function process (docuri) {
         if (val !== null)
           tuple.elt.val(val)
       })
-    if (response.headers.get('content-type').startsWith('Image/')) {
+    if (response.headers.get('content-type').startsWith('image/')) {
       Image.attr('src', docuri)
       Data.hide()
       Image.show()
-      Directory.hide()
+      Directory.parent().hide()
       Data.prev().click(showData)
     } else if (links && links.find(
       l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
         && l.rels.rel === 'type'
     ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
       const base = new URL(docuri)
-      Directory.html(parseContainer(store).map(
-        m => $('<li/>').append($('<input/>', {
+      const td = elt => $('<td/>').append(elt)
+      Directory.empty().append(parseContainer(store, docuri.length).map(
+        m => $('<tr/>').append(td($('<input/>', {
           type: 'checkbox',
           name: 'member',
           value: new URL(m.name, base).href
-        }), Object.entries(m).map(
-          pair => `${pair[0]}:${pair[1]} `
+        })), (["name", "role", "media", "size", "modified"]).map(
+          k => td(m[k])
         ))
       ))
       Data.hide()
       Image.hide()
-      Directory.show()
+      Directory.parent().show()
       Data.val(response.responseText)
       Data.prev().click(showData)
-
-      function parseContainer (store) {
-        const entries = store.match(null, ns.ldp('contains'), null).map(q => q.object)
-        return entries.map(s => ({
-          name: s.value.substr(docuri.length),
-          role: store.match(s, ns.rdf('type'), null).filter(q => q.object.value.startsWith(ns.ldp('').value)).map(q => q.object.value.substr(ns.ldp('').value.length)),
-          media: store.match(s, ns.rdf('type'), null).filter(q => q.object.value.startsWith(ns.media('').value)).map(q => q.object.value.substr(ns.media('').value.length).replace(/#.*$/, '')),
-          size: store.match(s, ns.posix('size'), null).map(q => q.object.value),
-          modified: store.match(s, ns.dcterms('modified'), null).map(q => q.object.value),
-        }))
-      }
     } else {
       Data.val(response.responseText)
       showData()
@@ -199,8 +191,32 @@ async function process (docuri) {
 function showData (evt) {
   Data.show()
   Image.hide()
-  Directory.hide()
+  Directory.parent().hide()
   Data.prev().off('click', showData);
+}
+
+function parseContainer (store, trim) {
+  const entries = store.match(null, ns.ldp('contains'), null).map(q => q.object)
+  return entries.map(s => ({
+    name: s.value.substr(trim),
+    role: val(s, ns.rdf('type'), ns.ldp('')),
+    media: val(s, ns.rdf('type'), ns.media(''), v => v.replace(/#.*$/, '')),
+    size: val(s, ns.posix('size')),
+    modified: val(s, ns.dcterms('modified')),
+  }))
+
+  function val (s, p, oStem, f) {
+    const values = store.match(s, p, null).map(q => q.object.value)
+    const filtered = oStem
+          ? values.filter(
+            v => v.startsWith(oStem.value)
+          ).map(
+            v => v.substr(oStem.value.length)
+          )
+          : values
+    const x = f ? filtered.map(f) : filtered
+    return x.join(',')
+  }
 }
 
 function serialize (sts, base) {

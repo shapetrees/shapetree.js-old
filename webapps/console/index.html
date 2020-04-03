@@ -15,7 +15,17 @@
     You are logged in as <span id="user"></span>.
     <button>Log out</button>
   </p>
-  <div><label for="data">data</label>: <textarea id="data" rows="25" style="width:100%">&lt;s&gt; &lt;p&gt; &lt;o&gt; .</textarea><img id="image" alt="" /><ol id="directory"></div>
+  <div>
+    <label for="data">data</label>:
+    <textarea id="data" rows="25" style="width:100%">&lt;s&gt; &lt;p&gt; &lt;o&gt; .</textarea>
+    <img id="image" alt="" />
+    <table>
+      <thead>
+        <tr><th></th><th>name</th><th>role</th><th>media</th><th>size</th><th>modified</th></tr>
+      </thead>
+      <tbody id="directory"></tbody>
+    </table>
+  </div>
   <span class="wide"><label for="location">location</label>: <input id="location" value="https://ericp.solid.community/public/test-folder/foo.ttl"></input><br/></span>
   <label for="media-type">media type</label>: <input id="media-type" value="text/turtle"></input>
   <label for="slug">slug</label>: <input id="slug"></input>
