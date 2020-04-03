@@ -88,7 +88,7 @@ const RdfTypes = ['text/turtle', 'application/json']
 const NeedsBody = ['PUT', 'POST']
 const NeedsSlug = ['POST']
 
-const [method, mediaType, Location, data, slug, image, directory, result]
+const [Method, MediaType, Location, Data, Slug, Image, Directory, Result]
       = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#directory'), $('#result')]
 
 $('#fetch').click(evt => {
@@ -103,49 +103,49 @@ async function process (docuri) {
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
   // fetcher.timeout = 30000
-  // ([Location, data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
-  mediaType.removeClass('error');
-  data.removeClass('error');
+  // ([Location, Data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
+  MediaType.removeClass('error');
+  Data.removeClass('error');
 
 
   try {
     let response
-    if (method.val() === 'STOMP') {
-    } else if (method.val() === 'GET') {
+    if (Method.val() === 'STOMP') {
+    } else if (Method.val() === 'GET') {
       // GET may be invoked by either webOperation or load (which
       // calls pendingFetchPromise)
       response = await fetcher.load(docuri)
     } else {
       const fetchOpts = Object.assign(
-        {contentType: mediaType.val(), acceptString: mediaType.val() },
-        NeedsBody.indexOf(method.val()) !== -1 ? {data: data.val()} : {},
-        NeedsSlug.indexOf(method.val()) !== -1 ? {headers: {'Slug': slug.val()}} : {}
+        {contentType: MediaType.val(), acceptString: MediaType.val() },
+        NeedsBody.indexOf(Method.val()) !== -1 ? {data: Data.val()} : {},
+        NeedsSlug.indexOf(Method.val()) !== -1 ? {headers: {'slug': Slug.val()}} : {}
       )
-      response = await fetcher.webOperation(method.val(), docuri, fetchOpts)
+      response = await fetcher.webOperation(Method.val(), docuri, fetchOpts)
     }
     const links = response.headers.get('link')
           ? parseLinkHeader(response.headers.get('link'))
           : null
     // console.warn(response)
 
-    ([{name: 'content-type', elt: mediaType},
+    ([{name: 'content-type', elt: MediaType},
       {name: 'location', elt: Location}]).forEach(tuple => {
         const val = response.headers.get(tuple.name)
         if (val !== null)
           tuple.elt.val(val)
       })
-    if (response.headers.get('content-type').startsWith('image/')) {
-      image.attr('src', docuri)
-      data.hide()
-      image.show()
-      directory.hide()
-      $('#data').prev().click(showData)
+    if (response.headers.get('content-type').startsWith('Image/')) {
+      Image.attr('src', docuri)
+      Data.hide()
+      Image.show()
+      Directory.hide()
+      Data.prev().click(showData)
     } else if (links && links.find(
       l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
         && l.rels.rel === 'type'
     ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
       const base = new URL(docuri)
-      directory.html(parseContainer(store).map(
+      Directory.html(parseContainer(store).map(
         m => $('<li/>').append($('<input/>', {
           type: 'checkbox',
           name: 'member',
@@ -154,11 +154,11 @@ async function process (docuri) {
           pair => `${pair[0]}:${pair[1]} `
         ))
       ))
-      data.hide()
-      image.hide()
-      directory.show()
-      data.val(response.responseText)
-      $('#data').prev().click(showData)
+      Data.hide()
+      Image.hide()
+      Directory.show()
+      Data.val(response.responseText)
+      Data.prev().click(showData)
 
       function parseContainer (store) {
         const entries = store.match(null, ns.ldp('contains'), null).map(q => q.object)
@@ -171,7 +171,7 @@ async function process (docuri) {
         }))
       }
     } else {
-      data.val(response.responseText)
+      Data.val(response.responseText)
       showData()
     }
 
@@ -187,20 +187,20 @@ async function process (docuri) {
     } else {
       resultText += JSON.stringify((({ responseText, ...o }) => o)(response), null, 2)
     }
-    result.text(resultText)
+    Result.text(resultText)
   } catch (e) {
     console.warn(e);
-    ([mediaType, data]).forEach(elt => elt.addClass('error'))
-    data.val(e)
-    mediaType.val('text/plain')
+    ([MediaType, Data]).forEach(elt => elt.addClass('error'))
+    Data.val(e)
+    MediaType.val('text/plain')
   }
 }
 
 function showData (evt) {
-  data.show()
-  image.hide()
-  directory.hide()
-  $('#data').parent().off('click', showData);
+  Data.show()
+  Image.hide()
+  Directory.hide()
+  Data.prev().off('click', showData);
 }
 
 function serialize (sts, base) {
