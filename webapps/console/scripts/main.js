@@ -54,16 +54,22 @@ class FootprintManager {
     }
     fetcher.pendingFetchPromise = function () {
       const argArray = Array.from(arguments)
+      if (argArray[2].credentials === 'omit') {
+        console.warn('skipping pendingFetchPromise retry ', argArray)
+        return oldPFP.apply(fetcher, argArray)
+      }
+      console.warn('pendingFetchPromise', argArray)
       const parentUri = new URL('.', new URL(argArray[0].uri || argArray[0]))
             .href
-      const parentPromise = parentUri in _FootprintManager.known
-            ? Promise.resolve(_FootprintManager.known[parentUri])
-            : oldPFP.apply(fetcher,
+      const parentPromise =
+            fetcher._fetch(parentUri)
+            parentUri in _FootprintManager.known ?
+            Promise.resolve(_FootprintManager.known[parentUri]) :
+            oldPFP.apply(fetcher,
                            [parentUri, parentUri,
                             fetcher.initFetchOptions(parentUri, {})])
             .then(resp => cacheMe(resp, parentUri))
 
-      console.warn('pendingFetchPromise', argArray)
       return Promise.all([
         parentPromise,
         oldPFP.apply(fetcher, argArray)]).then(both => {
@@ -97,8 +103,11 @@ const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
   acc[attr] = val
   return acc
 }, {})
-if ('location' in Args)
-  process(Args.location)
+if ('location' in Args) {
+  Location.val(Args.location)
+  if (Args.immediate)
+    process(Args.location)
+}
 
 $('#fetch').click(evt => {
   const members = $('input[name=member]:checked').prop("checked", false).get()
@@ -139,12 +148,13 @@ async function process (docuri) {
           : null
     // console.warn(response)
 
-    ([{name: 'content-type', elt: MediaType},
-      {name: 'location', elt: Location}]).forEach(tuple => {
-        const val = response.headers.get(tuple.name)
-        if (val !== null)
-          tuple.elt.val(val)
-      })
+    const elts = [{name: 'content-type', elt: MediaType},
+                  {name: 'location', elt: Location}]
+    elts.forEach(tuple => {
+      const val = response.headers.get(tuple.name)
+      if (val !== null)
+        tuple.elt.val(val)
+    })
     if (response.headers.get('content-type').startsWith('image/')) {
       Image.attr('src', docuri)
       Data.hide()
