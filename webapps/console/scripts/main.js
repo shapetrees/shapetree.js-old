@@ -1,3 +1,7 @@
+// const footprint = require('../../../footprints/util/footprint.js')
+
+console.log(blues.Blueprints)
+
 const ns = {
   link: $rdf.Namespace('http://www.w3.org/2007/ont/link#'),
   http: $rdf.Namespace('http://www.w3.org/2007/ont/http#'),
@@ -12,27 +16,28 @@ const ns = {
 }
 
 // Log the user in and out on click
-const popupUri = 'popup.html';
-$('#login  button').click(() => solid.auth.popupLogin({ popupUri }));
-$('#logout button').click(() => solid.auth.logout());
+const popupUri = 'popup.html'
+$('#login  button').click(() => solid.auth.popupLogin({ popupUri }))
+$('#logout button').click(() => solid.auth.logout())
 $('#image').hide()
 
 // Update components to match the user's login status
 solid.auth.trackSession(session => {
-  const loggedIn = !!session;
-  $('#login').toggle(!loggedIn);
-  $('#logout').toggle(loggedIn);
+  const loggedIn = !!session
+  $('#login').toggle(!loggedIn)
+  $('#logout').toggle(loggedIn)
   if (loggedIn) {
-    $('#user').text(session.webId);
+    $('#user').text(session.webId)
     // Use the user's WebID as default profile
     if (!$('#profile').val())
-      $('#profile').val(session.webId);
+      $('#profile').val(session.webId)
   }
-});
+})
 
 class FootprintManager {
-  constructor () {
+  constructor (bypass) {
     this.flush()
+    this.bypass = bypass
   }
 
   flush () {
@@ -56,6 +61,10 @@ class FootprintManager {
       const argArray = Array.from(arguments)
       if (argArray[2].credentials === 'omit') {
         console.warn('skipping pendingFetchPromise retry ', argArray)
+        return oldPFP.apply(fetcher, argArray)
+      }
+      if (_FootprintManager.bypass()) {
+        console.warn('bypassing pendingFetchPromise')
         return oldPFP.apply(fetcher, argArray)
       }
       console.warn('pendingFetchPromise', argArray)
@@ -88,23 +97,51 @@ class FootprintManager {
   }
 }
 
-const TheMan = new FootprintManager() // don't let the man keep you down
-
 const RdfTypes = ['text/turtle', 'application/json']
 const NeedsBody = ['PUT', 'POST']
 const NeedsSlug = ['POST']
 
-const [Method, MediaType, Location, Data, Slug, Image, Directory, Result]
-      = [$('#method'), $('#media-type'), $('#location'), $('#data'), $('#slug'), $('#image'), $('#directory'), $('#result')]
+const Ctls = ([
+  'manifest', 'data', 'image', 'directory', 'location', 'intercept', 'footprint', 'intercept', 'mediatype', 'slug', 'method', 'result'
+]).reduce((acc, key) => {
+  acc[key] = $('#' + key)
+  return acc
+}, {})
+
+const TheMan = new FootprintManager( // don't let the man keep you down
+  () => !Ctls.intercept.is(':checked') // respect intercept button
+)
 
 showData() // hide image and directory table
 const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
   const [attr, val] = pair.split(/=/).map(decodeURIComponent)
   acc[attr] = val
   return acc
-}, {})
+}, {});
+if ('manifest' in Args) {
+  fetch(Args.manifest).then(
+    async resp => {
+      const j = await resp.json()
+      const ul = $('<ul/>')
+      for(let label in j) {
+        const li = $('<li/>').append($('<button/>').text(label).on('click', evt => {
+          Ctls.mediatype.removeClass('error')
+          Ctls.data.removeClass('error')
+          for (let key in j[label]) {
+            Ctls[key].val(j[label][key])
+          }
+        }))
+        ul.append(li)
+      }
+      Ctls.manifest.append(ul)
+    },
+    e => {
+      Ctls.manifest.addClass('error').text(e.stack || e)
+    }
+  )
+}
 if ('location' in Args) {
-  Location.val(Args.location)
+  Ctls.location.val(Args.location)
   if (Args.immediate)
     process(Args.location)
 }
@@ -114,7 +151,7 @@ $('#fetch').click(evt => {
   if (members.length > 0)
     members.map(m => process(m.getAttribute('value')))
   else
-    process(Location.val())
+    process(Ctls.location.val())
 })
 
 async function process (docuri) {
@@ -124,49 +161,61 @@ async function process (docuri) {
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
   // fetcher.timeout = 30000
-  // ([Location, Data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
-  MediaType.removeClass('error');
-  Data.removeClass('error');
+  // ([Ctls.location, Ctls.data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
+  Ctls.mediatype.removeClass('error')
+  Ctls.data.removeClass('error')
 
   try {
     let response
-    if (Method.val() === 'STOMP') {
-    } else if (Method.val() === 'GET') {
+    if (Ctls.method.val() === 'PLANT') {
+      const link = ['<http://www.w3.org/ns/ldp#Container>; rel="type"',
+                    `<${Ctls.footprint.val()}>; rel="blueprint"`];
+      const fetchOpts = {
+        contentType: Ctls.mediatype.val(),
+        acceptString: Ctls.mediatype.val(),
+        data: Ctls.data.val(),
+        headers: {
+          slug: Ctls.slug.val(),
+          link: link
+        }
+      }
+      response = await fetcher.webOperation('POST', docuri, fetchOpts)
+    } else if (Ctls.method.val() === 'GET') {
       // GET may be invoked by either webOperation or load (which
       // calls pendingFetchPromise)
       response = await fetcher.load(docuri)
     } else {
       const fetchOpts = Object.assign(
-        {contentType: MediaType.val(), acceptString: MediaType.val() },
-        NeedsBody.indexOf(Method.val()) !== -1 ? {data: Data.val()} : {},
-        NeedsSlug.indexOf(Method.val()) !== -1 ? {headers: {'slug': Slug.val()}} : {}
+        {contentType: Ctls.mediatype.val(), acceptString: Ctls.mediatype.val() },
+        NeedsBody.indexOf(Ctls.method.val()) !== -1 ? {data: Ctls.data.val()} : {},
+        NeedsCtls.slug.indexOf(Ctls.method.val()) !== -1 ? {headers: {'slug': Ctls.slug.val()}} : {}
       )
-      response = await fetcher.webOperation(Method.val(), docuri, fetchOpts)
+      response = await fetcher.webOperation(Ctls.method.val(), docuri, fetchOpts)
     }
     const links = response.headers.get('link')
           ? parseLinkHeader(response.headers.get('link'))
           : null
     // console.warn(response)
 
-    const elts = [{name: 'content-type', elt: MediaType},
-                  {name: 'location', elt: Location}]
+    const elts = [{name: 'content-type', elt: Ctls.mediatype},
+                  {name: 'location', elt: Ctls.location}]
     elts.forEach(tuple => {
       const val = response.headers.get(tuple.name)
       if (val !== null)
         tuple.elt.val(val)
     })
     if (response.headers.get('content-type').startsWith('image/')) {
-      Image.attr('src', docuri)
-      Data.hide()
-      Image.show()
-      Directory.parent().hide()
-      Data.prev().click(showData)
+      Ctls.image.attr('src', docuri)
+      Ctls.data.hide()
+      Ctls.image.show()
+      Ctls.directory.parent().hide()
+      Ctls.data.prev().click(showData)
     } else if (links && links.find(
       l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
         && l.rels.rel === 'type'
     ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
       const td = elt => $('<td/>').append(elt)
-      Directory.empty().append(parseContainer(store, docuri.length).map(
+      Ctls.directory.empty().append(parseContainer(store, docuri.length).map(
         m => $('<tr/>').append(td($('<input/>', {
           type: 'checkbox',
           name: 'member',
@@ -177,13 +226,13 @@ async function process (docuri) {
           k => td(m[k])
         ))
       ))
-      Data.hide()
-      Image.hide()
-      Directory.parent().show()
-      Data.val(response.responseText)
-      Data.prev().click(showData)
+      Ctls.data.hide()
+      Ctls.image.hide()
+      Ctls.directory.parent().show()
+      Ctls.data.val(response.responseText)
+      Ctls.data.prev().click(showData)
     } else {
-      Data.val(response.responseText)
+      Ctls.data.val(response.responseText)
       showData()
     }
 
@@ -199,20 +248,28 @@ async function process (docuri) {
     } else {
       resultText += JSON.stringify((({ responseText, ...o }) => o)(response), null, 2)
     }
-    Result.text(resultText)
+    Ctls.result.text(resultText)
   } catch (e) {
-    console.warn(e);
-    ([MediaType, Data]).forEach(elt => elt.addClass('error'))
-    Data.val(e)
-    MediaType.val('text/plain')
+    console.warn(e)
+    let text = ''
+    try {
+      text = await e.response.text();
+      if (e.response.headers.get('content-type').startsWith('application/json'))
+        text = JSON.stringify(JSON.parse(text), null, 2)
+    } catch (e) {  }
+    // ([Ctls.mediatype, Ctls.data]).forEach(elt => elt.addClass('error'))
+    Ctls.mediatype.addClass('error')
+    Ctls.data.addClass('error')
+    Ctls.data.val(e + '\n' + text)
+    Ctls.mediatype.val('text/plain')
   }
 }
 
 function showData (evt) {
-  Data.show()
-  Image.hide()
-  Directory.parent().hide()
-  Data.prev().off('click', showData);
+  Ctls.data.show()
+  Ctls.image.hide()
+  Ctls.directory.parent().hide()
+  Ctls.data.prev().off('click', showData)
 }
 
 function parseContainer (store, trim) {

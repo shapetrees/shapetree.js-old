@@ -1,5 +1,7 @@
-body {
-  max-width: 800px;
+body > * { float:left; }
+#manifest { max-width: 40em; }
+#main {
+  max-width999: 800px;
   margin: 0 auto;
 }
 
@@ -38,4 +40,23 @@ a:hover {
 .wide input { flex: 1 }
 table { border-collapse: collapse; }
 td { border: thin solid black; padding: .1em .5em; }
+
+label { margin: .4em 0; }
+input { margin: .3em 0; }
+
+h1 { margin-top: 0; }
+#manifest {
+    margin-top: 13ex;
+    list-style: none;
+    margin-left: -5ex;
+    margin-right: 1ex;
+}
+#manifest button {
+    font-size: .7em;
+    padding: 0em 2ex;
+    border-radius: .5em;
+    border: thin solid #000;
+    cursor: pointer;
+    box-shadow: 0.1em 0px 1em rgba(255, 255, 255, 0.9) inset;
+}
 
