@@ -98,8 +98,10 @@ class FootprintManager {
 }
 
 const RdfTypes = ['text/turtle', 'application/json']
-const NeedsBody = ['PUT', 'POST']
-const NeedsSlug = ['POST']
+const Needs = {
+  data: ['PUT', 'POST'],
+  slug: ['POST']
+}
 
 const Ctls = ([
   'manifest', 'data', 'image', 'directory', 'location', 'intercept', 'footprint', 'intercept', 'mediatype', 'slug', 'method', 'result'
@@ -146,6 +148,18 @@ if ('location' in Args) {
     process(Args.location)
 }
 
+$("body").keydown(function (e) { // keydown because we need to preventDefault
+  var code = e.keyCode || e.charCode; // standards anyone?
+  if (e.ctrlKey && (code === 10 || code === 13)) {
+    var at = $(":focus");
+    $("#fetch").focus().click();
+    at.focus();
+    return false; // same as e.preventDefault();
+  } else {
+    return true;
+  }
+});
+
 $('#fetch').click(evt => {
   const members = $('input[name=member]:checked').prop("checked", false).get()
   if (members.length > 0)
@@ -156,7 +170,8 @@ $('#fetch').click(evt => {
 
 async function process (docuri) {
   docuri = docuri.replace(/^</, '').replace(/>$/, '').split('#')[0] // remove <>s and #
-  window.history.pushState( {} , 'Footprint user ' + docuri, '?location=' +  encodeURIComponent(docuri))
+  Args.location = docuri
+  window.history.pushState( {} , 'Footprint user ' + docuri, '?' + Object.keys(Args).map(k => `${k}=${encodeURIComponent(Args[k])}`).join('&'))
 
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
@@ -187,8 +202,8 @@ async function process (docuri) {
     } else {
       const fetchOpts = Object.assign(
         {contentType: Ctls.mediatype.val(), acceptString: Ctls.mediatype.val() },
-        NeedsBody.indexOf(Ctls.method.val()) !== -1 ? {data: Ctls.data.val()} : {},
-        NeedsCtls.slug.indexOf(Ctls.method.val()) !== -1 ? {headers: {'slug': Ctls.slug.val()}} : {}
+        Needs.data.indexOf(Ctls.method.val()) !== -1 ? {data: Ctls.data.val()} : {},
+        Needs.slug.indexOf(Ctls.method.val()) !== -1 ? {headers: {slug: Ctls.slug.val()}} : {}
       )
       response = await fetcher.webOperation(Ctls.method.val(), docuri, fetchOpts)
     }
@@ -204,7 +219,8 @@ async function process (docuri) {
       if (val !== null)
         tuple.elt.val(val)
     })
-    if (response.headers.get('content-type').startsWith('image/')) {
+    const contentType = response.headers.get('content-type')
+    if (contentType && contentType.startsWith('image/')) {
       Ctls.image.attr('src', docuri)
       Ctls.data.hide()
       Ctls.image.show()
@@ -254,8 +270,11 @@ async function process (docuri) {
     let text = ''
     try {
       text = await e.response.text();
-      if (e.response.headers.get('content-type').startsWith('application/json'))
-        text = JSON.stringify(JSON.parse(text), null, 2)
+      if ('response' in e) {
+        const contentType = e.response.headers.get('content-type')
+        if (contentType && contentType.startsWith('application/json'))
+          text = JSON.stringify(JSON.parse(text), null, 2)
+      }
     } catch (e) {  }
     // ([Ctls.mediatype, Ctls.data]).forEach(elt => elt.addClass('error'))
     Ctls.mediatype.addClass('error')
