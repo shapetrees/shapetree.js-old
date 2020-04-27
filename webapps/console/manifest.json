@@ -1,30 +1,30 @@
 {
-  "PLANT nevernote in /Shared/toynote": {
-    "location": "https://localhost:12340/Shared/",
+  "PLANT nevernote in /Data/ConsoleNotes": {
+    "location": "https://localhost:12340/Data/",
     "data": "PREFIX ldp: <http://www.w3.org/ns/ldp#>\n[] ldp:app <http://store.example/gh> .\n<http://store.example/gh> ldp:name \"CollisionTest\" .",
-    "footprint": "https://janeirodigital.github.io/shapetrees/solidApps/staticRoot/nevernote/NeverNoteBlueprint.ttl",
+    "footprint": "https://janeirodigital.github.io/shapetrees/solidApps/staticRoot/nevernote/NeverNoteShapeTree.ttl",
     "mediatype": "text/turtle",
-    "slug": "toynote",
+    "slug": "ConsoleNotes",
     "method": "PLANT"
   },
-  "GET /Shared/": {
-    "location": "https://localhost:12340/Shared/",
+  "GET /Data/": {
+    "location": "https://localhost:12340/Data/",
     "data": "",
     "footprint": "",
     "mediatype": "",
     "slug": "",
     "method": "GET"
   },
-  "GET /Shared/toynote": {
-    "location": "https://localhost:12340/Shared/toynote/",
+  "GET /Data/ConsoleNotes": {
+    "location": "https://localhost:12340/Data/ConsoleNotes/",
     "data": "",
     "footprint": "",
     "mediatype": "",
     "slug": "",
     "method": "GET"
   },
-  "DELETE /Shared/toynote": {
-    "location": "https://localhost:12340/Shared/toynote/",
+  "DELETE /Data/ConsoleNotes": {
+    "location": "https://localhost:12340/Data/ConsoleNotes/",
     "data": "",
     "footprint": "",
     "mediatype": "",

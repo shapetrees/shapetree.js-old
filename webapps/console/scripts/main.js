@@ -184,7 +184,7 @@ async function process (docuri) {
     let response
     if (Ctls.method.val() === 'PLANT') {
       const link = ['<http://www.w3.org/ns/ldp#Container>; rel="type"',
-                    `<${Ctls.footprint.val()}>; rel="blueprint"`];
+                    `<${Ctls.footprint.val()}>; rel="shapeTree"`];
       const fetchOpts = {
         contentType: Ctls.mediatype.val(),
         acceptString: Ctls.mediatype.val(),
