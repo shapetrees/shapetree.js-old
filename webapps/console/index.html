@@ -18,15 +18,21 @@
     <button>Log out</button>
   </p>
   <div>
-    <label for="data">data</label>:
-    <textarea id="data" rows="25" style="width:100%">&lt;s&gt; &lt;p&gt; &lt;o&gt; .</textarea>
-    <img id="image" alt="" />
-    <table>
-      <thead>
-        <tr><th></th><th>name</th><th>role</th><th>media</th><th>size</th><th>modified</th></tr>
-      </thead>
-      <tbody id="directory"></tbody>
-    </table>
+    <label for="view">view</label>: <select id="view">
+      <option value="turtle" selected="selected">turtle</option>
+      <option value="directory">directory</option>
+      <option value="image">image</option>
+    </select>
+    <div id="data">
+      <textarea id="turtle" rows="25" style="width:100%">&lt;s&gt; &lt;p&gt; &lt;o&gt; .</textarea>
+      <img id="image" alt="" />
+      <table id="directory">
+        <thead>
+          <tr><th></th><th>name</th><th>role</th><th>media</th><th>size</th><th>modified</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
   <span class="wide"><label for="location">location:</label> <input id="location" value="https://ericp.solid.community/public/test-folder/foo.ttl"></input><br/></span>
   <span class="wide"><label for="footprint">footprint:</label> <input id="footprint" value="https://ericp.solid.community/public/test-folder/foo.ttl" size="60"></input>

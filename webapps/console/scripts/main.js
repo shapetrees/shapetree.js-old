@@ -19,7 +19,6 @@ const ns = {
 const popupUri = 'popup.html'
 $('#login  button').click(() => solid.auth.popupLogin({ popupUri }))
 $('#logout button').click(() => solid.auth.logout())
-$('#image').hide()
 
 // Update components to match the user's login status
 solid.auth.trackSession(session => {
@@ -99,12 +98,12 @@ class FootprintManager {
 
 const RdfTypes = ['text/turtle', 'application/json']
 const Needs = {
-  data: ['PUT', 'POST'],
+  turtle: ['PUT', 'POST'],
   slug: ['POST']
 }
 
 const Ctls = ([
-  'manifest', 'data', 'image', 'directory', 'location', 'intercept', 'footprint', 'intercept', 'mediatype', 'slug', 'method', 'result'
+  'manifest', 'view', 'data', 'turtle', 'image', 'directory', 'location', 'intercept', 'footprint', 'intercept', 'mediatype', 'slug', 'method', 'result'
 ]).reduce((acc, key) => {
   acc[key] = $('#' + key)
   return acc
@@ -114,7 +113,18 @@ const TheMan = new FootprintManager( // don't let the man keep you down
   () => !Ctls.intercept.is(':checked') // respect intercept button
 )
 
-showData() // hide image and directory table
+Ctls.view.on('change', evt => {
+  Ctls.data.children().each((idx, elt) => {
+    const jelt = $(elt);
+    const id = jelt.prop('id');
+    const showMe = Ctls.view.val();
+    if (id === showMe)
+      jelt.show();
+    else
+      jelt.hide();
+  })
+});
+
 const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
   const [attr, val] = pair.split(/=/).map(decodeURIComponent)
   acc[attr] = val
@@ -128,10 +138,9 @@ if ('manifest' in Args) {
       for(let label in j) {
         const li = $('<li/>').append($('<button/>').text(label).on('click', evt => {
           Ctls.mediatype.removeClass('error')
-          Ctls.data.removeClass('error')
-          for (let key in j[label]) {
-            Ctls[key].val(j[label][key])
-          }
+          Ctls.turtle.removeClass('error')
+          for (let key in j[label])
+            Ctls[key].val(j[label][key]).change()
         }))
         ul.append(li)
       }
@@ -176,9 +185,9 @@ async function process (docuri) {
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
   // fetcher.timeout = 30000
-  // ([Ctls.location, Ctls.data]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
+  // ([Ctls.location, Ctls.turtle]).forEach(elt => elt.removeClass('error')) 3TF doesn't this work?
   Ctls.mediatype.removeClass('error')
-  Ctls.data.removeClass('error')
+  Ctls.turtle.removeClass('error')
 
   try {
     let response
@@ -188,7 +197,7 @@ async function process (docuri) {
       const fetchOpts = {
         contentType: Ctls.mediatype.val(),
         acceptString: Ctls.mediatype.val(),
-        data: Ctls.data.val(),
+        data: Ctls.turtle.val(),
         headers: {
           slug: Ctls.slug.val(),
           link: link
@@ -202,7 +211,7 @@ async function process (docuri) {
     } else {
       const fetchOpts = Object.assign(
         {contentType: Ctls.mediatype.val(), acceptString: Ctls.mediatype.val() },
-        Needs.data.indexOf(Ctls.method.val()) !== -1 ? {data: Ctls.data.val()} : {},
+        Needs.turtle.indexOf(Ctls.method.val()) !== -1 ? {turtle: Ctls.turtle.val()} : {},
         Needs.slug.indexOf(Ctls.method.val()) !== -1 ? {headers: {slug: Ctls.slug.val()}} : {}
       )
       response = await fetcher.webOperation(Ctls.method.val(), docuri, fetchOpts)
@@ -222,16 +231,13 @@ async function process (docuri) {
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.startsWith('image/')) {
       Ctls.image.attr('src', docuri)
-      Ctls.data.hide()
-      Ctls.image.show()
-      Ctls.directory.parent().hide()
-      Ctls.data.prev().click(showData)
+      Ctls.view.val('image').trigger('change')
     } else if (links && links.find(
       l => l.uri === 'http://www.w3.org/ns/ldp#BasicContainer'
         && l.rels.rel === 'type'
-    ) && store.match(null, ns.ldp('contains'), null).length > 0) { // only works after fetcher.load()
+    ) && store.match(null, ns.ldp('contains'), null).length > 0) { // store is populated by fetcher.load(), not webOperation()
       const td = elt => $('<td/>').append(elt)
-      Ctls.directory.empty().append(parseContainer(store, docuri.length).map(
+      Ctls.directory.find('tbody').empty().append(parseContainer(store, docuri.length).map(
         m => $('<tr/>').append(td($('<input/>', {
           type: 'checkbox',
           name: 'member',
@@ -242,14 +248,11 @@ async function process (docuri) {
           k => td(m[k])
         ))
       ))
-      Ctls.data.hide()
-      Ctls.image.hide()
-      Ctls.directory.parent().show()
-      Ctls.data.val(response.responseText)
-      Ctls.data.prev().click(showData)
+      Ctls.view.val('directory').trigger('change')
+      Ctls.turtle.val(response.responseText)
     } else {
-      Ctls.data.val(response.responseText)
-      showData()
+      Ctls.turtle.val(response.responseText)
+      Ctls.view.val('turtle').trigger('change')
     }
 
     let resultText = ''
@@ -276,19 +279,13 @@ async function process (docuri) {
           text = JSON.stringify(JSON.parse(text), null, 2)
       }
     } catch (e) {  }
-    // ([Ctls.mediatype, Ctls.data]).forEach(elt => elt.addClass('error'))
+    Ctls.view.val('turtle').trigger('change')
+    // ([Ctls.mediatype, Ctls.turtle]).forEach(elt => elt.addClass('error'))
     Ctls.mediatype.addClass('error')
-    Ctls.data.addClass('error')
-    Ctls.data.val(e + '\n' + text)
+    Ctls.turtle.addClass('error')
+    Ctls.turtle.val(e + '\n' + text)
     Ctls.mediatype.val('text/plain')
   }
-}
-
-function showData (evt) {
-  Ctls.data.show()
-  Ctls.image.hide()
-  Ctls.directory.parent().hide()
-  Ctls.data.prev().off('click', showData)
 }
 
 function parseContainer (store, trim) {
