@@ -1,8 +1,8 @@
-# footprint^h^h^ushapetreelib.js
+# shapetree.js
 
 ## to play
-* git clone --recursive git@github.com:janeirodigital/footprintlib.js
-* cd footprintlib.js
+* git clone --recursive git@github.com:shapetrees/shapetree.js
+* cd shapetree.js
 * cd footprints
 * npm install
 * npm run genkeys
