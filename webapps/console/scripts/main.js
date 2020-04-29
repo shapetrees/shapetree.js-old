@@ -1,4 +1,4 @@
-// const footprint = require('../../../footprints/util/footprint.js')
+// const shapetree = require('../../../shapetrees/util/shapetree.js')
 
 console.log(blues.Blueprints)
 
@@ -33,7 +33,7 @@ solid.auth.trackSession(session => {
   }
 })
 
-class FootprintManager {
+class ShapeTreeManager {
   constructor (bypass) {
     this.flush()
     this.bypass = bypass
@@ -47,7 +47,7 @@ class FootprintManager {
 
   makeFetcher (store) {
     console.warn(Array.from(arguments))
-    const _FootprintManager = this
+    const _ShapeTreeManager = this
     const fetcher = new $rdf.Fetcher(store)
     const oldFetcher = fetcher.webOperation
     const oldPFP = fetcher.pendingFetchPromise
@@ -62,7 +62,7 @@ class FootprintManager {
         console.warn('skipping pendingFetchPromise retry ', argArray)
         return oldPFP.apply(fetcher, argArray)
       }
-      if (_FootprintManager.bypass()) {
+      if (_ShapeTreeManager.bypass()) {
         console.warn('bypassing pendingFetchPromise')
         return oldPFP.apply(fetcher, argArray)
       }
@@ -71,8 +71,8 @@ class FootprintManager {
             .href
       const parentPromise =
             fetcher._fetch(parentUri)
-            parentUri in _FootprintManager.known ?
-            Promise.resolve(_FootprintManager.known[parentUri]) :
+            parentUri in _ShapeTreeManager.known ?
+            Promise.resolve(_ShapeTreeManager.known[parentUri]) :
             oldPFP.apply(fetcher,
                            [parentUri, parentUri,
                             fetcher.initFetchOptions(parentUri, {})])
@@ -90,7 +90,7 @@ class FootprintManager {
 
     function cacheMe (resp, uri) {
       if (resp.ok)
-        _FootprintManager.known[uri] = resp
+        _ShapeTreeManager.known[uri] = resp
       return resp
     }
   }
@@ -103,13 +103,13 @@ const Needs = {
 }
 
 const Ctls = ([
-  'manifest', 'view', 'data', 'turtle', 'image', 'directory', 'location', 'intercept', 'footprint', 'intercept', 'mediatype', 'slug', 'method', 'result'
+  'manifest', 'view', 'data', 'turtle', 'image', 'directory', 'location', 'intercept', 'shapetree', 'intercept', 'mediatype', 'slug', 'method', 'result'
 ]).reduce((acc, key) => {
   acc[key] = $('#' + key)
   return acc
 }, {})
 
-const TheMan = new FootprintManager( // don't let the man keep you down
+const TheMan = new ShapeTreeManager( // don't let the man keep you down
   () => !Ctls.intercept.is(':checked') // respect intercept button
 )
 
@@ -124,6 +124,8 @@ Ctls.view.on('change', evt => {
       jelt.hide();
   })
 });
+// Switch to Turtle view onload.
+Ctls.view.val('turtle').trigger('change')
 
 const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
   const [attr, val] = pair.split(/=/).map(decodeURIComponent)
@@ -133,6 +135,12 @@ const Args = window.location.search.substr(1).split(/&/).reduce((acc, pair) => {
 if ('manifest' in Args) {
   fetch(Args.manifest).then(
     async resp => {
+      Ctls.manifest.append(
+        $('<span/>', {class: 'source'}).append(
+          $('<a/>', {href: Args.manifest}).text('loaded manifest')
+        )
+      );
+
       const j = await resp.json()
       const ul = $('<ul/>')
       for(let label in j) {
@@ -180,7 +188,7 @@ $('#fetch').click(evt => {
 async function process (docuri) {
   docuri = docuri.replace(/^</, '').replace(/>$/, '').split('#')[0] // remove <>s and #
   Args.location = docuri
-  window.history.pushState( {} , 'Footprint user ' + docuri, '?' + Object.keys(Args).map(k => `${k}=${encodeURIComponent(Args[k])}`).join('&'))
+  window.history.pushState( {} , 'ShapeTree user ' + docuri, '?' + Object.keys(Args).map(k => `${k}=${encodeURIComponent(Args[k])}`).join('&'))
 
   const store = $rdf.graph()
   const fetcher = TheMan.makeFetcher(store) // new $rdf.Fetcher(store)
@@ -193,7 +201,7 @@ async function process (docuri) {
     let response
     if (Ctls.method.val() === 'PLANT') {
       const link = ['<http://www.w3.org/ns/ldp#Container>; rel="type"',
-                    `<${Ctls.footprint.val()}>; rel="shapeTree"`];
+                    `<${Ctls.shapetree.val()}>; rel="shapeTree"`];
       const fetchOpts = {
         contentType: Ctls.mediatype.val(),
         acceptString: Ctls.mediatype.val(),

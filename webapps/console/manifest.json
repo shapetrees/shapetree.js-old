@@ -3,7 +3,8 @@
     "location": "https://localhost:12340/Data/",
     "turtle": "PREFIX ldp: <http://www.w3.org/ns/ldp#>\n[] ldp:app <http://store.example/gh> .\n<http://store.example/gh> ldp:name \"CollisionTest\" .",
     "view": "turtle",
-    "footprint": "https://janeirodigital.github.io/shapetrees/solidApps/staticRoot/nevernote/NeverNoteShapeTree.ttl",
+    "shapetree": "https://janeirodigital.github.io/shapetrees/solidApps/staticRoot/nevernote/NeverNoteShapeTree.ttl",
+    "shapetree": "https://localhost:12341/nevernote/NeverNoteShapeTree.ttl",
     "mediatype": "text/turtle",
     "slug": "ConsoleNotes",
     "method": "PLANT"
@@ -11,7 +12,7 @@
   "GET /Data/": {
     "location": "https://localhost:12340/Data/",
     "turtle": "",
-    "footprint": "",
+    "shapetree": "",
     "mediatype": "",
     "slug": "",
     "method": "GET"
@@ -19,7 +20,7 @@
   "GET /Data/ConsoleNotes": {
     "location": "https://localhost:12340/Data/ConsoleNotes/",
     "turtle": "",
-    "footprint": "",
+    "shapetree": "",
     "mediatype": "",
     "slug": "",
     "method": "GET"
@@ -27,7 +28,7 @@
   "DELETE /Data/ConsoleNotes": {
     "location": "https://localhost:12340/Data/ConsoleNotes/",
     "turtle": "",
-    "footprint": "",
+    "shapetree": "",
     "mediatype": "",
     "slug": "",
     "method": "DELETE"

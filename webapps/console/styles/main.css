@@ -51,6 +51,9 @@ h1 { margin-top: 0; }
     margin-left: -5ex;
     margin-right: 1ex;
 }
+#manifest .source {
+    margin-left: 5em;
+}
 #manifest button {
     font-size: .7em;
     padding: 0em 2ex;
