@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "serve": "echo 'goto https://localhost:12341/webapps/console/index.html?manifest=manifest.json' && cd footprints/ && npm run serve LDP AppStore webapps:../webapps",
+    "serve": "echo 'goto https://localhost:12341/webapps/console/index.html?manifest=manifest.json' && cd .. && npm run serve LDP AppStore webapps:../webapps",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
