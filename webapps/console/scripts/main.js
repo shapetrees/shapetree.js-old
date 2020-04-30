@@ -103,7 +103,7 @@ const Needs = {
 }
 
 const Ctls = ([
-  'manifest', 'view', 'data', 'turtle', 'image', 'directory', 'location', 'intercept', 'shapetree', 'intercept', 'mediatype', 'slug', 'method', 'result'
+  'manifest', 'view', 'data', 'turtle', 'image', 'directory', 'hex', 'json', 'location', 'intercept', 'shapetree', 'intercept', 'mediatype', 'slug', 'method', 'result'
 ]).reduce((acc, key) => {
   acc[key] = $('#' + key)
   return acc
@@ -237,7 +237,10 @@ async function process (docuri) {
         tuple.elt.val(val)
     })
     const contentType = response.headers.get('content-type')
-    if (contentType && contentType.startsWith('image/')) {
+    if (!contentType) {
+      Ctls.hex.val('no contents')
+      Ctls.view.val('hex').trigger('change')
+    } else if (contentType && contentType.startsWith('image/')) {
       Ctls.image.attr('src', docuri)
       Ctls.view.val('image').trigger('change')
     } else if (links && links.find(
@@ -258,9 +261,24 @@ async function process (docuri) {
       ))
       Ctls.view.val('directory').trigger('change')
       Ctls.turtle.val(response.responseText)
-    } else {
+    } else if (contentType.startsWith('text/turtle')) {
       Ctls.turtle.val(response.responseText)
       Ctls.view.val('turtle').trigger('change')
+    } else if (contentType.startsWith('application/json')) {
+      Ctls.json.val(JSON.stringify(await response.json(), null, 2))
+      Ctls.view.val('json').trigger('change')
+    } else {
+      const buffer = await response.arrayBuffer();
+      const hex = [...new Uint8Array (buffer)]
+            .map (b => b.toString (16).padStart (2, '0'))
+            .join (' ');
+      // let hex = '';
+      // const bytes = new Uint8Array( buffer );
+      // const len = bytes.byteLength;
+      // for (var i = 0; i < len; i++)
+      //   hex += String.fromCharCode(bytes[i]);
+      Ctls.hex.val(hex)
+      Ctls.view.val('hex').trigger('change')
     }
 
     let resultText = ''
