@@ -4,7 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "serve": "echo 'goto https://localhost:12341/webapps/console/index.html?manifest=manifest.json' && cd .. && npm run serve LDP AppStore webapps:shapetree.js/webapps",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
