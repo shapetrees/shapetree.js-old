@@ -57,7 +57,7 @@ class simpleApps {
      * @param parentUrl - URL of parent container, e.g. URL('http://localhost/')
      */
     async function createContainers (spec, parentUrl)  {
-      const container = await new _simpleApps.shapeTrees.managedContainer(new URL(spec.path, parentUrl), spec.title, null, null).ready;
+      const container = await new _simpleApps.shapeTrees.container(new URL(spec.path, parentUrl), spec.title).ready;
       spec.container = container; // in case someone needs them later.
       if (spec.children) {
         await Promise.all(spec.children.map(async child => {
@@ -104,8 +104,8 @@ class simpleApps {
    * @param instanceUrl: location of the ShapeTree instance
    */
   async registerInstance(appData, shapeTreeUrl, instanceUrl) {
-    const apps = await new this.shapeTrees.managedContainer(this.appsUrl, `Applications Directory`, null, null).ready;
-    const app = await new this.shapeTrees.managedContainer(new URL(appData.name + '/', this.appsUrl), appData.name + ` Directory`, null, null).ready;
+    const apps = await new this.shapeTrees.container(this.appsUrl, `Applications Directory`, null, null).ready;
+    const app = await new this.shapeTrees.container(new URL(appData.name + '/', this.appsUrl), appData.name + ` Directory`, null, null).ready;
     apps.addMember(app.url, shapeTreeUrl);
     await apps.write();
     const prefixes = {
