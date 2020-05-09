@@ -116,11 +116,11 @@ class simpleApps {
     }
     const appFileText = Object.entries(prefixes).map(p => `PREFIX ${p[0]}: <${p[1]}>`).join('\n') + `
 <> tree:installedIn
-  [ tree:app <${appData.stomped}> ;
+  [ tree:app <${appData.planted}> ;
     tree:shapeTreeRoot <${shapeTreeUrl.href}> ;
     tree:shapeTreeInstancePath <${instanceUrl.href}> ;
   ] .
-<${appData.stomped}> tree:name "${appData.name}" .
+<${appData.planted}> tree:name "${appData.name}" .
 `    // could add tree:instantiationDateTime "${new Date().toISOString()}"^^xsd:dateTime ;
     const toAdd = await this._rdfInterface.parseTurtle(appFileText, app.url, prefixes);
     app.merge(toAdd);
@@ -133,10 +133,10 @@ class simpleApps {
    * @param graph: RDFJS Store
    */
   parseInstatiationPayload (graph) {
-    const stomped = this._rdfInterface.one(graph, null, namedNode(Prefixes.ns_ldp + 'app'), null).object;
-    const name = this._rdfInterface.one(graph, stomped, namedNode(Prefixes.ns_ldp + 'name'), null).object;
+    const planted = this._rdfInterface.one(graph, null, namedNode(Prefixes.ns_ldp + 'app'), null).object;
+    const name = this._rdfInterface.one(graph, planted, namedNode(Prefixes.ns_ldp + 'name'), null).object;
     return {
-      stomped: stomped.value,
+      planted: planted.value,
       name: name.value
     };
   }
