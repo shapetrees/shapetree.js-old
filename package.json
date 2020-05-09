@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"See <https://github.com/shapetrees/test-suite#installrun-tests> for testing\" && exit 1",
     "webpack": "webpack"
   },
   "repository": {
