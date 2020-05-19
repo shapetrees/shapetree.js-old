@@ -98,6 +98,41 @@ class simpleApps {
     return q ? new URL(q.subject.value) : null;
   }
 
+
+  /** Install (plant) a ShapeTree instance.
+   * @param shapeTreeUrl: URL of ShapeTree to be planted
+   * @param postedContainer: parent Container where instance should appear
+   * @param requestedLocation: url of created ShapeTree instance
+   * @param payloadGraph: RDF payload POSTed in the plant request
+   */
+  async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedLocation, payloadGraph) {
+    Log('plant', shapeTreeUrl.href)
+
+    // Ask ecosystem if we can re-use an old ShapeTree instance.
+    const reusedLocation = this.reuseShapeTree(postedContainer, shapeTreeUrl);
+    if (reusedLocation) {
+      requestedLocation = reusedLocation;
+      Log('plant reusing', requestedLocation.pathname.substr(1));
+    } else {
+      Log('plant creating', requestedLocation.pathname.substr(1));
+
+      // Populate a ShapeTree object.
+      const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
+      await shapeTree.fetch();
+
+      // Create and register ShapeTree instance.
+      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), requestedLocation, '.', postedContainer);
+      this.indexInstalledShapeTree(postedContainer, requestedLocation, shapeTreeUrl);
+      await postedContainer.write();
+    }
+
+    // The ecosystem consumes the payload and provides a response.
+    const appData = this.parseInstatiationPayload(payloadGraph);
+    const [responseGraph, prefixes] = await this.registerInstance(appData, shapeTreeUrl, requestedLocation);
+    const rebased = await this._rdfInterface.serializeTurtle(responseGraph, postedContainer.url, prefixes);
+    return [requestedLocation, rebased, 'text/turtle'];
+  }
+
   /** registerInstance - register a new ShapeTree instance
    * @param appData: RDFJS DataSet
    * @param shapeTree: ShapeTree.RemoteShapeTree
