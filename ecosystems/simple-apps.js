@@ -15,6 +15,7 @@ const Fs = require('fs');
 const Fetch = require('node-fetch');
 const Log = require('debug')('simpleApps');
 const Errors = require('../lib/rdf-errors');
+const Mutex = require('../lib/mutex');
 const Prefixes = require('../lib/prefixes');
 const { DataFactory } = require("n3");
 const { namedNode, literal, defaultGraph, quad } = DataFactory;
@@ -34,6 +35,7 @@ class simpleApps {
     this.fileSystem = fileSystem;
     this.shapeTrees = shapeTrees;
     this._rdfInterface = rdfInterface;
+    this._mutex = new Mutex();
   }
 
   initialize (baseUrl, LdpConf) {
@@ -102,35 +104,52 @@ class simpleApps {
   /** Install (plant) a ShapeTree instance.
    * @param shapeTreeUrl: URL of ShapeTree to be planted
    * @param postedContainer: parent Container where instance should appear
-   * @param requestedLocation: url of created ShapeTree instance
+   * @param requestedName: url of created ShapeTree instance
    * @param payloadGraph: RDF payload POSTed in the plant request
    */
-  async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedLocation, payloadGraph) {
+  async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedName, payloadGraph) {
     Log('plant', shapeTreeUrl.href)
+    const appData = this.parseInstatiationPayload(payloadGraph);
+    let location;
 
     // Ask ecosystem if we can re-use an old ShapeTree instance.
-    const reusedLocation = this.reuseShapeTree(postedContainer, shapeTreeUrl);
-    if (reusedLocation) {
-      requestedLocation = reusedLocation;
-      Log('plant reusing', requestedLocation.pathname.substr(1));
+    location = this.reuseShapeTree(postedContainer, shapeTreeUrl);
+    if (location) {
+      Log('plant reused', location.pathname.substr(1));
     } else {
-      Log('plant creating', requestedLocation.pathname.substr(1));
 
       // Populate a ShapeTree object.
       const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
       await shapeTree.fetch();
 
+            const FS_PICKS_NAME = true; if (FS_PICKS_NAME) {
+      const unlock = await this._mutex.lock();
+      const newContainer = await this.fileSystem.suggestName(
+        postedContainer.url, requestedName, 'Container',
+        async url => {
+          const nested = await postedContainer.nestContainer(url);
+          await nested.asManagedContainer(shapeTreeUrl, '.') // @@ move asMC to RemoveShapeTree.instantiateStatic() ?
+          await nested.write();
+          return nested;
+        }
+      );
+      location = newContainer.url;
+      unlock();
       // Create and register ShapeTree instance.
-      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), requestedLocation, '.', postedContainer);
-      this.indexInstalledShapeTree(postedContainer, requestedLocation, shapeTreeUrl);
+      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
+            } else {
+              location = new URL(requestedName + '/', postedContainer.url);
+            }
+      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, undefined);
+      this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
       await postedContainer.write();
+      Log('plant creating', location.pathname.substr(1));
     }
 
     // The ecosystem consumes the payload and provides a response.
-    const appData = this.parseInstatiationPayload(payloadGraph);
-    const [responseGraph, prefixes] = await this.registerInstance(appData, shapeTreeUrl, requestedLocation);
+    const [responseGraph, prefixes] = await this.registerInstance(appData, shapeTreeUrl, location);
     const rebased = await this._rdfInterface.serializeTurtle(responseGraph, postedContainer.url, prefixes);
-    return [requestedLocation, rebased, 'text/turtle'];
+    return [location, rebased, 'text/turtle'];
   }
 
   /** registerInstance - register a new ShapeTree instance
