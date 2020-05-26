@@ -122,7 +122,6 @@ class simpleApps {
       const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
       await shapeTree.fetch();
 
-            const FS_PICKS_NAME = true; if (FS_PICKS_NAME) {
       const unlock = await this._mutex.lock();
       const newContainer = await this.fileSystem.suggestName(
         postedContainer.url, requestedName, 'Container',
@@ -137,9 +136,6 @@ class simpleApps {
       unlock();
       // Create and register ShapeTree instance.
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
-            } else {
-              location = new URL(requestedName + '/', postedContainer.url);
-            }
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, undefined);
       this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
       await postedContainer.write();
