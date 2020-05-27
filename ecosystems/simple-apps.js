@@ -123,20 +123,13 @@ class simpleApps {
       await shapeTree.fetch();
 
       const unlock = await this._mutex.lock();
-      const newContainer = await this.fileSystem.suggestName(
-        postedContainer.url, requestedName, 'Container',
-        async url => {
-          const nested = await postedContainer.nestContainer(url);
-          await nested.asManagedContainer(shapeTreeUrl, '.') // @@ move asMC to RemoveShapeTree.instantiateStatic() ?
-          await nested.write();
-          return nested;
-        }
-      );
+      const tmp = await (await postedContainer.nestContainer(requestedName, `Application Container`));
+      const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
+      await newContainer.write();
       location = newContainer.url;
       unlock();
       // Create and register ShapeTree instance.
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
-      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, undefined);
       this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
       await postedContainer.write();
       Log('plant creating', location.pathname.substr(1));
