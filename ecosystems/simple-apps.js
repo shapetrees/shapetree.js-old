@@ -190,7 +190,7 @@ class simpleApps {
   async fetch (url, /* istanbul ignore next */opts = {}) {
     const prefixes = {};
     const cacheUrl = new URL(cacheName(url.href), this.cacheUrl);
-    if (!await this.fileSystem.exists(cacheUrl)) {
+    if (!await this.fileSystem.rstat(cacheUrl).then(stat => true, e => false)) {
       // The first time this url was seen, put the mime type and payload in the cache.
 
       Log('cache miss on', url.href, '/', cacheUrl.href)
