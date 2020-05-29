@@ -125,7 +125,7 @@ class simpleApps {
       const unlock = await this._mutex.lock();
       const tmp = await (await postedContainer.nestContainer(requestedName, `Application Container`));
       const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
-      newContainer.setTitle('index for nested resource .'); // @@ `root of Container for ${shapeTree.url}`
+      newContainer.setTitle(`root of Container for ${shapeTree.url}`);
       await newContainer.write();
       location = newContainer.url;
       unlock();
