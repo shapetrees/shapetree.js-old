@@ -14,6 +14,7 @@
 const Fs = require('fs');
 const Fetch = require('node-fetch');
 const Log = require('debug')('simpleApps');
+const Details = Log.extend('details');
 const Errors = require('../lib/rdf-errors');
 const Mutex = require('../lib/mutex');
 const Prefixes = require('../lib/prefixes');
@@ -109,6 +110,8 @@ class simpleApps {
    */
   async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedName, payloadGraph) {
     Log('plant', shapeTreeUrl.href)
+    const funcDetails = Details.extend(`plantShapeTreeInstance(<${shapeTreeUrl.href}>), Container(<${postedContainer.url.pathname}>), "${requestedName}", Store() with ${payloadGraph.size} quads`);
+    funcDetails('');
     const appData = this.parseInstatiationPayload(payloadGraph);
     let location;
 
@@ -119,24 +122,33 @@ class simpleApps {
     } else {
 
       // Populate a ShapeTree object.
+      funcDetails('ShapeTrees.RemoteShapeTree(%s)', shapeTreeUrl.href);
       const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
       await shapeTree.fetch();
 
       const unlock = await this._mutex.lock();
-      const tmp = await (await postedContainer.nestContainer(requestedName, `Application Container`));
+      const appContainerTitle = 'Application Container';
+      funcDetails('postedContainer(<%s>).nestContainer(<%s>, "%s")', shapeTreeUrl.href, postedContainer.url.pathname, requestedName, appContainerTitle)
+      const tmp = await (await postedContainer.nestContainer(requestedName, appContainerTitle));
+      funcDetails(`Container(${tmp.url.pathname}).asManagedContainer(${shapeTreeUrl.pathname}, '.')`)
       const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
+      funcDetails('setTitle()');
       newContainer.setTitle(`root of Container for ${shapeTree.url}`);
       await newContainer.write();
       location = newContainer.url;
       unlock();
       // Create and register ShapeTree instance.
+      funcDetails(`shapeTree(${shapeTree.url.pathname}).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, ${location.pathname}, '.', postedContainer(${postedContainer.url.pathname}), newContainer(${newContainer.url.pathname}))`);
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
+      funcDetails(`indexInstalledShapeTree(postedContainer, location, shapeTreeUrl)`);
       this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
+      funcDetails(`postedContainer.write()`);
       await postedContainer.write();
       Log('plant creating', location.pathname.substr(1));
     }
 
     // The ecosystem consumes the payload and provides a response.
+    funcDetails(`registerInstance(appData, shapeTreeUrl, location)`);
     const [responseGraph, prefixes] = await this.registerInstance(appData, shapeTreeUrl, location);
     const rebased = await this._rdfInterface.serializeTurtle(responseGraph, postedContainer.url, prefixes);
     return [location, rebased, 'text/turtle'];
@@ -148,9 +160,14 @@ class simpleApps {
    * @param instanceUrl: location of the ShapeTree instance
    */
   async registerInstance(appData, shapeTreeUrl, instanceUrl) {
-    const apps = await new this.shapeTrees.Container(this.appsUrl, `Applications Directory`, null, null).ready;
-    const app = await new this.shapeTrees.Container(new URL(appData.name + '/', this.appsUrl), appData.name + ` Directory`, null, null).ready;
+    const funcDetails = Details.extend(`registerInstance(<%{appData}>, <${shapeTreeUrl.href}> <%{instanceUrl.pathname}>)`);
+    funcDetails('');
+    funcDetails(`apps = new Container(${this.appsUrl.pathname}, 'Applications Directory', null, null)`);
+    const apps = await new this.shapeTrees.Container(this.appsUrl, 'Applications Directory', null, null).ready;
+    funcDetails(`new Container(${new URL(appData.name + '/', this.appsUrl).pathname}, ${appData.name + ' Directory'}, null, null).ready`);
+    const app = await new this.shapeTrees.Container(new URL(appData.name + '/', this.appsUrl), appData.name + ' Directory', null, null).ready;
     apps.addMember(app.url, shapeTreeUrl);
+    funcDetails('apps.write');
     await apps.write();
     const prefixes = {
       ldp: Prefixes.ns_ldp,
@@ -169,6 +186,7 @@ class simpleApps {
     const toAdd = await this._rdfInterface.parseTurtle(appFileText, app.url, prefixes);
     app.merge(toAdd);
     Object.assign(app.prefixes, prefixes);
+    funcDetails('app.write');
     await app.write();
     return [toAdd, prefixes];
   }
@@ -187,13 +205,17 @@ class simpleApps {
 
   /** a caching wrapper for fetch
    */
-  async fetch (url, /* istanbul ignore next */opts = {}) {
+  async cachingFetch (url, /* istanbul ignore next */opts = {}) {
+    const funcDetails = Details.extend(`fetch(<${url.href}>, ${JSON.stringify(opts)})`);
+    funcDetails('');
     const prefixes = {};
     const cacheUrl = new URL(cacheName(url.href), this.cacheUrl);
+    funcDetails('this.fileSystem.rstat(<%s>)', cacheUrl.pathname);
     if (!await this.fileSystem.rstat(cacheUrl).then(stat => true, e => false)) {
       // The first time this url was seen, put the mime type and payload in the cache.
 
       Log('cache miss on', url.href, '/', cacheUrl.href)
+      funcDetails('Errors.getOrThrow(Fetch, <%s>)', url.pathname);
       const resp = await Errors.getOrThrow(Fetch, url);
       const text = await resp.text();
       const headers = Array.from(resp.headers).filter(
@@ -209,6 +231,7 @@ class simpleApps {
       const image = Array.from(headers).map(
         pair => `${escape(pair[0])}: ${escape(pair[1])}`
       ).join('\n')+'\n\n' + text;
+      funcDetails('fileSystem.write(<%s>, "%s...")', cacheUrl.pathname, image.substr(0, 60).replace(/\n/g, '\\n'));
       await this.fileSystem.write(cacheUrl, image);
       Log('cached', url.href, 'size:', text.length, 'type:', headers.get('content-type'), 'in', cacheUrl.href)
       // return resp;
@@ -216,6 +239,7 @@ class simpleApps {
     } else {
       // Pull mime type and payload from cache.
 
+      funcDetails('fileSystem.read(<%s>)', cacheUrl.pathname);
       const image = await this.fileSystem.read(cacheUrl);
       // const [mediaType, text] = image.match(/([^\n]+)\n\n(.*)/s).slice(1);
       const eoh = image.indexOf('\n\n');
