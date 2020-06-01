@@ -13,7 +13,7 @@
 
 const Fs = require('fs');
 const Fetch = require('node-fetch');
-const Log = require('debug')('simpleApps');
+const Log = require('debug')('		simpleApps');
 const Details = Log.extend('details');
 const Errors = require('../lib/rdf-errors');
 const Mutex = require('../lib/mutex');
@@ -110,7 +110,7 @@ class simpleApps {
    */
   async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedName, payloadGraph) {
     Log('plant', shapeTreeUrl.href)
-    const funcDetails = Details.extend(`plantShapeTreeInstance(<${shapeTreeUrl.href}>), Container(<${postedContainer.url.pathname}>), "${requestedName}", Store() with ${payloadGraph.size} quads`);
+    const funcDetails = Details.extend(`plantShapeTreeInstance(<${shapeTreeUrl.href}>), Container(<${postedContainer.url.pathname}>), "${requestedName}", Store() with ${payloadGraph.size} quads)`);
     funcDetails('');
     const appData = this.parseInstatiationPayload(payloadGraph);
     let location;
@@ -122,13 +122,13 @@ class simpleApps {
     } else {
 
       // Populate a ShapeTree object.
-      funcDetails('ShapeTrees.RemoteShapeTree(%s)', shapeTreeUrl.href);
+      funcDetails('ShapeTrees.RemoteShapeTree(<%s>)', shapeTreeUrl.href);
       const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
       await shapeTree.fetch();
 
       const unlock = await this._mutex.lock();
       const appContainerTitle = 'Application Container';
-      funcDetails('postedContainer(<%s>).nestContainer(<%s>, "%s")', shapeTreeUrl.href, postedContainer.url.pathname, requestedName, appContainerTitle)
+      funcDetails('postedContainer(<%s>).nestContainer(<%s>, "%s")', postedContainer.url.pathname, requestedName, appContainerTitle)
       const tmp = await (await postedContainer.nestContainer(requestedName, appContainerTitle));
       funcDetails(`Container(${tmp.url.pathname}).asManagedContainer(${shapeTreeUrl.pathname}, '.')`)
       const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
@@ -138,7 +138,7 @@ class simpleApps {
       location = newContainer.url;
       unlock();
       // Create and register ShapeTree instance.
-      funcDetails(`shapeTree(${shapeTree.url.pathname}).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, ${location.pathname}, '.', postedContainer(${postedContainer.url.pathname}), newContainer(${newContainer.url.pathname}))`);
+      funcDetails(`shapeTree(${shapeTree.url.pathname}).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, ${location.pathname}, '.', postedContainer(${postedContainer.url.pathname}), Container(${newContainer.url.pathname}))`);
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
       funcDetails(`indexInstalledShapeTree(postedContainer, location, shapeTreeUrl)`);
       this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
@@ -206,7 +206,8 @@ class simpleApps {
   /** a caching wrapper for fetch
    */
   async cachingFetch (url, /* istanbul ignore next */opts = {}) {
-    const funcDetails = Details.extend(`fetch(<${url.href}>, ${JSON.stringify(opts)})`);
+    // const funcDetails = Details.extend(`cachingFetch(<${url.href}>, ${JSON.stringify(opts)})`);
+    const funcDetails = require('debug')('						cachingFetch').extend('details').extend(`cachingFetch(<${url.href}>, ${JSON.stringify(opts)})`);
     funcDetails('');
     const prefixes = {};
     const cacheUrl = new URL(cacheName(url.href), this.cacheUrl);
