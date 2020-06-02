@@ -137,10 +137,11 @@ class simpleApps {
       await newContainer.write();
       location = newContainer.url;
       unlock();
+
       // Create and register ShapeTree instance.
-      funcDetails(`shapeTree(${shapeTree.url.pathname}).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, ${location.pathname}, '.', postedContainer(${postedContainer.url.pathname}), Container(${newContainer.url.pathname}))`);
+      funcDetails(`shapeTree(<${shapeTree.url.href}>).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, <${location.pathname}>, '.', postedContainer(<${postedContainer.url.pathname}>), Container(<${newContainer.url.pathname}>))`);
       await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
-      funcDetails(`indexInstalledShapeTree(postedContainer, location, shapeTreeUrl)`);
+      funcDetails(`indexInstalledShapeTree(postedContainer(<${postedContainer.url.pathname}>), <${location.pathname}>, <${shapeTreeUrl.href}>)`);
       this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
       funcDetails(`postedContainer.write()`);
       await postedContainer.write();
