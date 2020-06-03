@@ -1,0 +1,139 @@
+ PLANT
+    PUT tests
+      plant /shape-trees.test/ShapeMaps-PUT-tests/
+LDP server	simpleApps	shape-tree	cachingFetch	filesystem
+ShapeTree.loadContainer(</shape-trees.test/>)
+				parentContainer = new Container(</shape-trees.test/>, [Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"}]) 
+ecosystem.plantShapeTreeInstance(%ShapeTree root%, parentContainer, "ShapeMaps-PUT-tests", Store() with 2 quads)
+		plantShapeTreeInstance shapeTreeRoot = ShapeTrees.RemoteShapeTree(%ShapeTree root%)
+				shapeTreeRoot:fetch()
+						cachingFetch(%ShapeTree root%, {}) fileSystem.write(</Cache/httplocalhost12345ghghShapeTree>, "accept-ranges: bytes\naccess-control-allow-credentials: true\n...")
+								write(</Cache/httplocalhost12345ghghShapeTree>, "accept-ranges: bytes\naccess-control-allow-credentials: true\n...")
+		plantShapeTreeInstance parentContainer.nestContainer("ShapeMaps-PUT-tests", "Application Container")
+				parentContainer:nestContainer("ShapeMaps-PUT-tests", "Application Container") fileSystem.inventContainer(/shape-trees.test/, ShapeMaps-PUT-tests, unmanaged Container in /shape-trees.test/, {})
+								inventContainer(/shape-trees.test/, ShapeMaps-PUT-tests, unmanaged Container in /shape-trees.test/, {})
+				parentContainer:nestContainer("ShapeMaps-PUT-tests", "Application Container") instanceContainer = new Container(/shape-trees.test/, [Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"}])
+				\ Container(</shape-trees.test/ShapeMaps-PUT-tests/>, [Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"}]):new 
+								writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/>, Store() with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+		plantShapeTreeInstance instanceContainer = instanceContainer.asManagedContainer(%ShapeTree root%, '.')
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+		plantShapeTreeInstance setTitle()
+								writeContainer(instanceContainer)
+		plantShapeTreeInstance shapeTree(%ShapeTree root%).instantiateStatic({"termType":"NamedNode","value":"%ShapeTree root%"}, /shape-trees.test/ShapeMaps-PUT-tests/, '.', parentContainer, Container(/shape-trees.test/ShapeMaps-PUT-tests/))
+
+				shapeTreeRoot:instantiateStatic(%ShapeTree root%, </shape-trees.test/ShapeMaps-PUT-tests/>, ".", /shape-trees.test/, ...) 
+
+				for %staticSubDir% in repos users:
+				shapeTreeRoot:instantiateStatic(%ShapeTree root%, </shape-trees.test/ShapeMaps-PUT-tests/>, ".", /shape-trees.test/, ...) new RemoteShapeTree(%ShapeTree root%, "%staticSubDir%/")
+				\ RemoteResource(%ShapeTree root%) new
+				  RemoteShapeTree(%ShapeTree root%, "%staticSubDir%/") new
+				shapeTreeRoot:instantiateStatic(%ShapeTree root%, </shape-trees.test/ShapeMaps-PUT-tests/>, ".", /shape-trees.test/, ...) step.instantiateStatic(<NamedNode { id: '%ShapeTree root%#%staticSubDir%' }>, </shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "%staticSubDir%/", ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/>, ...))
+				\ RemoteShapeTree(%ShapeTree root%, "%staticSubDir%/"):instantiateStatic(<%ShapeTree root%#%staticSubDir%>, </shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "%staticSubDir%/", /shape-trees.test/ShapeMaps-PUT-tests/, ...) 
+				  RemoteShapeTree(%ShapeTree root%, "%staticSubDir%/"):instantiateStatic(<%ShapeTree root%#%staticSubDir%>, </shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "%staticSubDir%/", /shape-trees.test/ShapeMaps-PUT-tests/, ...) new ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "%staticSubDir%/")
+				  Container(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%"):new 
+				  … Container(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%"):new fileSystem.ensureContainer() /shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/
+								fsPromise:ensureContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, {}, "title") 
+								fsPromise:ensureContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, {}, "title") writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+								writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, Store() with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+				  ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "%staticSubDir%/"):new 
+				  … ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "%staticSubDir%/"):new this.asManagedContainer(%ShapeTree root%, "%staticSubDir%/")
+				    ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, "nested Container %staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "%staticSubDir%/"):new fileSystem.writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, Store() with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/%staticSubDir%/>, Store() with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+
+								writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/>, Store() with 6 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/>, Store() with 7 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+		plantShapeTreeInstance indexInstalledShapeTree(parentContainer, </shape-trees.test/ShapeMaps-PUT-tests/>, %ShapeTree root%)
+		plantShapeTreeInstance postedContainer.write()
+								writeContainer(</shape-trees.test/>, Store() with 3 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+		plantShapeTreeInstance registerInstance(appData, shapeTreeUrl, location)
+		\ registerInstance(<%{appData}>, %ShapeTree root% <%{instanceUrl.pathname}>) 
+		  registerInstance(<%{appData}>, %ShapeTree root% <%{instanceUrl.pathname}>) apps = new Container(/Apps/, 'Applications Directory', null, null)
+				Container(</Apps/>, "Applications Directory"):new 
+				Container(</Apps/>, "Applications Directory"):new fileSystem.ensureContainer() /Apps/
+								fsPromise:ensureContainer(</Apps/>, {}, "title") 
+								fsPromise:ensureContainer(</Apps/>, {}, "title") this.readContainer(</Apps/>, {})
+		  registerInstance(<%{appData}>, %ShapeTree root% <%{instanceUrl.pathname}>) new Container(/Apps/GhApp/, GhApp Directory, null, null).ready
+				Container(</Apps/GhApp/>, "GhApp Directory"):new 
+				Container(</Apps/GhApp/>, "GhApp Directory"):new fileSystem.ensureContainer() /Apps/GhApp/
+								fsPromise:ensureContainer(</Apps/GhApp/>, {}, "title") 
+								fsPromise:ensureContainer(</Apps/GhApp/>, {}, "title") writeContainer(</Apps/GhApp/>, Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+								writeContainer(</Apps/GhApp/>, Store() with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+		  registerInstance(<%{appData}>, %ShapeTree root% <%{instanceUrl.pathname}>) apps.write
+								writeContainer(</Apps/>, Store() with 3 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"})
+		  registerInstance(<%{appData}>, %ShapeTree root% <%{instanceUrl.pathname}>) app.write
+								writeContainer(</Apps/GhApp/>, Store() with 7 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#","xsd":"http://www.w3.org/2001/XMLSchema#"})
+postedContainer(/shape-trees.test/).addMember(</shape-trees.test/ShapeMaps-PUT-tests/>)
+postedContainer(/shape-trees.test/).write()
+  								writeContainer(</shape-trees.test/>, Store() with 4 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}) +2ms
+        ✓ should PLANT /shape-trees.test/ShapeMaps-PUT-tests
+
+
+        post /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/
+LDP server	simpleApps	shape-tree	cachingFetch	filesystem
+ShapeTree.loadContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>)
+				Container(</shape-trees.test/ShapeMaps-PUT-tests/users/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+				RemoteResource(%ShapeTree root%) new
+				RemoteShapeTree(%ShapeTree root%, "users/") new
+				RemoteShapeTree(%ShapeTree root%, "users/") fetch()
+						cachingFetch(%ShapeTree root%, {}) 
+						cachingFetch(%ShapeTree root%, {}) this.fileSystem.rstat(</Cache/httplocalhost12345ghghShapeTree>)
+						cachingFetch(%ShapeTree root%, {}) fileSystem.read(</Cache/httplocalhost12345ghghShapeTree>)
+								read(</Cache/httplocalhost12345ghghShapeTree>)
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) 
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) this.fileSystem.rstat(</Cache/httplocalhost12345ghghSchema>)
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) Errors.getOrThrow(Fetch, </gh/ghSchema>)
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) fileSystem.write(</Cache/httplocalhost12345ghghSchema>, "accept-ranges: bytes\naccess-control-allow-credentials: true\n...")
+								fsPromise write(</Cache/httplocalhost12345ghghSchema>, "accept-ranges: bytes\naccess-control-allow-credentials: true\n...")
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):nestContainer("ericprud", "POSTed Container") fileSystem.inventContainer(/shape-trees.test/ShapeMaps-PUT-tests/users/, ericprud, managed Container in /shape-trees.test/ShapeMaps-PUT-tests/users/, {})
+								fsPromise inventContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>, "ericprud", "${title}", {})
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):nestContainer("ericprud", "POSTed Container") new Container(%ShapeTree root%, [...]).asManagedContainer(<users/ericprud/>, "+1ms")
+				Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, [Store with 2 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#"}]):new 
+				Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+				RemoteShapeTree(%ShapeTree root%, "users/"):instantiateStatic(<%ShapeTree root%#user>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, "users/ericprud/", /shape-trees.test/ShapeMaps-PUT-tests/users/, ...) 
+
+				for %staticSubDir% in followers received_events subscriptions orgs repos:
+				RemoteShapeTree(%ShapeTree root%, "users/"):instantiateStatic(<%ShapeTree root%#user>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, "users/ericprud/", /shape-trees.test/ShapeMaps-PUT-tests/users/, ...) new RemoteShapeTree(%ShapeTree root%, "users/ericprud/%staticSubDir%/")
+				RemoteResource(%ShapeTree root%) new
+				RemoteShapeTree(%ShapeTree root%, "users/ericprud/%staticSubDir%/") new
+				RemoteShapeTree(%ShapeTree root%, "users/"):instantiateStatic(<%ShapeTree root%#user>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, "users/ericprud/", /shape-trees.test/ShapeMaps-PUT-tests/users/, ...) step.instantiateStatic(<NamedNode { id: '%ShapeTree root%#%staticSubDir%' }>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "users/ericprud/%staticSubDir%/", ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, ...))
+				RemoteShapeTree(%ShapeTree root%, "users/ericprud/%staticSubDir%/"):instantiateStatic(<%ShapeTree root%#%staticSubDir%>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "users/ericprud/%staticSubDir%/", /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/, ...) 
+				RemoteShapeTree(%ShapeTree root%, "users/ericprud/%staticSubDir%/"):instantiateStatic(<%ShapeTree root%#%staticSubDir%>, </shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "users/ericprud/%staticSubDir%/", /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/, ...) new ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "users/ericprud/%staticSubDir%/")
+				Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%"):new 
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "users/ericprud/%staticSubDir%/"):new 
+
+				… Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%"):new fileSystem.ensureContainer() /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/
+								fsPromise:ensureContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, {}, "title") 
+				  Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "users/ericprud/%staticSubDir%/"):new this.asManagedContainer(<undefined>, "+2s")
+				  ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, "nested Container users/ericprud/%staticSubDir%/ in %ShapeTree root%", %ShapeTree root%, "users/ericprud/%staticSubDir%/"):new fileSystem.writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, Store() with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/%staticSubDir%/>, Store() with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 7 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 10 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 10 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 10 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/>, Store() with 28 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#","gh":"http://github.example/ns#","gdt":"http://github.example/dt#"})
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/>, Store() with 6 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+        ✓ should POST /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud (3783ms)
+
+
+        post /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/subscr1.ttl
+LDP server	simpleApps	shape-tree	cachingFetch	filesystem
+ShapeTree.loadContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>)
+				Container(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+				ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):new 
+				RemoteResource(<%ShapeTree root%>) new
+				RemoteShapeTree(<%ShapeTree root%>, "users/ericprud/subscriptions/") new
+				RemoteShapeTree(<%ShapeTree root%>, "users/ericprud/subscriptions/") fetch()
+						cachingFetch(<%ShapeTree root%>, {}) 
+						cachingFetch(<%ShapeTree root%>, {}) this.fileSystem.rstat(</Cache/httplocalhost12345ghghShapeTree>)
+						cachingFetch(<%ShapeTree root%>, {}) fileSystem.read(</Cache/httplocalhost12345ghghShapeTree>)
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) 
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) this.fileSystem.rstat(</Cache/httplocalhost12345ghghSchema>)
+						cachingFetch(<http://localhost:12345/gh/ghSchema>, {}) fileSystem.read(</Cache/httplocalhost12345ghghSchema>)
+				shape-tree:ManagedContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>, [Store with 5 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"}]):nest("%{slug}", 5407 bytes, "text/turtle) fileSystem.invent(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>, "subscr1.ttl", 5407 characters, "text/turtle")
+								fsPromise write(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/subscr1.ttl>, "@prefix gh: <http://github.example/ns#> .\n@prefix gdt: <http...")
+								fsPromise writeContainer(</shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/>, Store() with 6 quads, {"dcterms":"http://purl.org/dc/terms/","ldp":"http://www.w3.org/ns/ldp#","tree":"http://www.w3.org/ns/shapetree#"})
+          ✓ should POST /shape-trees.test/ShapeMaps-PUT-tests/users/ericprud/subscriptions/subscr1.ttl (607ms)
