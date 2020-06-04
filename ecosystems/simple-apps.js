@@ -108,53 +108,6 @@ class simpleApps {
    * @param requestedName: url of created ShapeTree instance
    * @param payloadGraph: RDF payload POSTed in the plant request
    */
-  async plantShapeTreeInstance (shapeTreeUrl, postedContainer, requestedName, payloadGraph) {
-    Log('plant', shapeTreeUrl.href)
-    const funcDetails = Details.extend(`plantShapeTreeInstance(<${shapeTreeUrl.href}>), Container(<${postedContainer.url.pathname}>), "${requestedName}", Store() with ${payloadGraph.size} quads)`);
-    funcDetails('');
-    const appData = this.parseInstatiationPayload(payloadGraph);
-    let location;
-
-    // Ask ecosystem if we can re-use an old ShapeTree instance.
-    location = this.reuseShapeTree(postedContainer, shapeTreeUrl);
-    if (location) {
-      Log('plant reused', location.pathname.substr(1));
-    } else {
-
-      // Populate a ShapeTree object.
-      funcDetails('ShapeTrees.RemoteShapeTree(<%s>)', shapeTreeUrl.href);
-      const shapeTree = new this.shapeTrees.RemoteShapeTree(shapeTreeUrl);
-      await shapeTree.fetch();
-
-      const unlock = await this._mutex.lock();
-      const appContainerTitle = 'Application Container';
-      funcDetails('postedContainer(<%s>).nestContainer(<%s>, "%s")', postedContainer.url.pathname, requestedName, appContainerTitle)
-      const tmp = await (await postedContainer.nestContainer(requestedName, appContainerTitle));
-      funcDetails(`Container(${tmp.url.pathname}).asManagedContainer(${shapeTreeUrl.pathname}, '.')`)
-      const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
-      funcDetails('setTitle()');
-      newContainer.setTitle(`root of Container for ${shapeTree.url}`);
-      await newContainer.write();
-      location = newContainer.url;
-      unlock();
-
-      // Create and register ShapeTree instance.
-      funcDetails(`shapeTree(<${shapeTree.url.href}>).instantiateStatic(${JSON.stringify(shapeTree.getRdfRoot())}, <${location.pathname}>, '.', postedContainer(<${postedContainer.url.pathname}>), Container(<${newContainer.url.pathname}>))`);
-      await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer, newContainer);
-      funcDetails(`indexInstalledShapeTree(postedContainer(<${postedContainer.url.pathname}>), <${location.pathname}>, <${shapeTreeUrl.href}>)`);
-      this.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
-      funcDetails(`postedContainer.write()`);
-      await postedContainer.write();
-      Log('plant creating', location.pathname.substr(1));
-    }
-
-    // The ecosystem consumes the payload and provides a response.
-    funcDetails(`registerInstance(appData, shapeTreeUrl, location)`);
-    const [responseGraph, prefixes] = await this.registerInstance(appData, shapeTreeUrl, location);
-    const rebased = await this._rdfInterface.serializeTurtle(responseGraph, postedContainer.url, prefixes);
-    return [location, rebased, 'text/turtle'];
-  }
-
   /** registerInstance - register a new ShapeTree instance
    * @param appData: RDFJS DataSet
    * @param shapeTree: ShapeTree.RemoteShapeTree
