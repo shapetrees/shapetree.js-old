@@ -5,17 +5,18 @@ participant cache as "cachingFetch"
 participant fs as "filesystem"
 title
         <u>plant</u> server implementation
-        plant <color #066>**%ShapeTree root%**</color> with <color #606>%slug%</color> into <color #00b>**parent URL**</color>
+        plant <color #066>**%ShapeTree root%**</color> with <color #606>%slug%</color> into <color #00b>**%parent URL%**</color>
 end title
 
-caller -> ST: loadContainer(<color #00b>**parent URL**</color>)
-note right of ST #fff: <color #00b>parentContainer</color> = new Container(<color #00b>**parent URL**</color>)
+caller -> fs: rstat(<color #00b>**%parent URL%**</color>)
+caller -> ST: loadContainer(<color #00b>**%parent URL%**</color>)
+note right of ST #fff: <color #00b>parentContainer</color> = new Container(<color #00b>**%parent URL%**</color>)
 
 caller -> ecosystem: plantShapeTreeInstance(<color #066>**%ShapeTree root%**</color>, <color #00b>parentContainer</color>)
 activate ecosystem
 
         group fetch remote ShapeTree
-                ecosystem -> ST #eef: <color #066>shapeTreeRoot</color> = ShapeTrees.RemoteShapeTree(<color #066>**%ShapeTree root%**</color>)
+                ecosystem -> ST #eef: <color #066>shapeTreeRoot</color> = new ShapeTrees.RemoteShapeTree(<color #066>**%ShapeTree root%**</color>)
                 ST -> cache: <color #066>shapeTreeRoot</color>:fetch()
                 cache -> fs: write(<hash(<color #066>**%ShapeTree root%**</color>)>, ...)
         end
@@ -23,37 +24,37 @@ activate ecosystem
         group invent root Container
                 ecosystem -> ST: <color #00b>parentContainer</color>.nestContainer("<color #606>%slug%</color>")
                 activate ST
-                        ST -> fs: inventContainer(<color #00b>**parent URL**</color>, "<color #606>%slug%</color>")
-                        note right of ST #fff: <color #0b0>instanceContainer</color> = new Container(<color #00b>**parent URL**</color>)\n\\ Container(<<color #00b>**parent URL**</color>/<color #606>%slug%</color>/>)
+                        ST -> fs: inventContainer(<color #00b>**%parent URL%**</color>, "<color #606>%slug%</color>")
+                        note right of ST #fff: <color #0b0>instanceContainer</color> = new Container(<color #00b>**%parent URL%**</color>)\n\\ Container(<<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/>)
                         ST -> fs:writeContainer(<color #0b0>instanceContainer</color>)
                 deactivate ST
                 ecosystem -> ST #eef: <color #0b0>instanceContainer</color> = <color #0b0>instanceContainer</color>.asManagedContainer(<color #066>**%ShapeTree root%**</color>, '.')
-                ST -> ST:ManagedContainer(<<color #00b>**parent URL**</color>/<color #606>%slug%</color>/>):new 
+                ST -> ST:ManagedContainer(<<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/>):new
                 ecosystem -> ST: setTitle(...)
                 ST -> fs: writeContainer(<color #0b0>instanceContainer</color>)
         end
 
         group instantiate nested Containers
                 ecosystem -> ST: shapeTree(<color #066>**%ShapeTree root%**</color>).instantiateStatic(\n\
-                %focus node%, <<color #00b>**parent URL**</color>/<color #606>%slug%</color>/>, '.', \n\
-                <color #00b>parentContainer</color>, Container(<color #00b>**parent URL**</color>/<color #606>%slug%</color>/))
+                %focus node%, <<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/>, '.', \n\
+                <color #00b>parentContainer</color>, Container(<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/))
                 group for each %staticSubDir%
                         activate ST
                                 ST -> ST: <color #066>shapeTreeRoot</color>:instantiateStatic(... %staticSubDir% ...)
                                 activate ST
                                         ST -> ST: ⮡ RemoteShapeTree(<color #066>**%ShapeTree root%**</color>) new
-                                        ST --> fs: ensureContainer(<<color #00b>**parent URL**</color>/<color #606>%slug%</color>/%staticSubDir%/>) 
-                                        ST --> fs: writeContainer(<<color #00b>**parent URL**</color>/<color #606>%slug%</color>/%staticSubDir%/>
+                                        ST --> fs: ensureContainer(<<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/%staticSubDir%/>)
+                                        ST --> fs: writeContainer(<<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/%staticSubDir%/>
                                 deactivate ST
                         end
                 deactivate ST
         end
 
         group index ShapeTree instance
-                ecosystem -> ST: indexInstalledShapeTree(<color #00b>parentContainer</color>, <<color #00b>**parent URL**</color>/<color #606>%slug%</color>/>, <color #066>**%ShapeTree root%**</color>)
+                ecosystem -> ST: indexInstalledShapeTree(<color #00b>parentContainer</color>, <<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/>, <color #066>**%ShapeTree root%**</color>)
                 ST -> fs: write() and writeContainer()...
         end
 deactivate ecosystem
 
-caller -> ST: postedContainer.addMember(<<color #00b>**parent URL**</color>/<color #606>%slug%</color>/>)
-ST -> fs: postedContainer(<color #00b>**parent URL**</color>/).writeContainer()
+caller -> ST: postedContainer.addMember(<<color #00b>**%parent URL%**</color>/<color #606>%slug%</color>/>)
+ST -> fs: postedContainer(<color #00b>**%parent URL%**</color>/).writeContainer()
