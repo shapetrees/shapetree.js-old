@@ -2,7 +2,7 @@ participant caller as "LDP server"
 participant ecosystem as "simple apps"
 participant ST as "shape-tree"
 participant cache as "cachingFetch"
-participant fs as "filesystem"
+participant fs as "storage"
 title
         <u>plant</u> server implementation
         plant <color #066>**%ShapeTree root%**</color> with <color #606>%slug%</color> into <color #00b>**%parent URL%**</color>

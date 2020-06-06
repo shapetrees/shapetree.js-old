@@ -32,8 +32,8 @@ class FakeResponse {
 };
 
 class simpleApps {
-  constructor (fileSystem, shapeTrees, rdfInterface) {
-    this.fileSystem = fileSystem;
+  constructor (storage, shapeTrees, rdfInterface) {
+    this.storage = storage;
     this.shapeTrees = shapeTrees;
     this._rdfInterface = rdfInterface;
     this._mutex = new Mutex();
@@ -165,8 +165,8 @@ class simpleApps {
     funcDetails('');
     const prefixes = {};
     const cacheUrl = new URL(cacheName(url.href), this.cacheUrl);
-    funcDetails('this.fileSystem.rstat(<%s>)', cacheUrl.pathname);
-    if (!await this.fileSystem.rstat(cacheUrl).then(stat => true, e => false)) {
+    funcDetails('this.storage.rstat(<%s>)', cacheUrl.pathname);
+    if (!await this.storage.rstat(cacheUrl).then(stat => true, e => false)) {
       // The first time this url was seen, put the mime type and payload in the cache.
 
       Log('cache miss on', url.href, '/', cacheUrl.href)
@@ -186,16 +186,16 @@ class simpleApps {
       const image = Array.from(headers).map(
         pair => `${escape(pair[0])}: ${escape(pair[1])}`
       ).join('\n')+'\n\n' + text;
-      funcDetails('fileSystem.write(<%s>, "%s...")', cacheUrl.pathname, image.substr(0, 60).replace(/\n/g, '\\n'));
-      await this.fileSystem.write(cacheUrl, image);
+      funcDetails('storage.write(<%s>, "%s...")', cacheUrl.pathname, image.substr(0, 60).replace(/\n/g, '\\n'));
+      await this.storage.write(cacheUrl, image);
       Log('cached', url.href, 'size:', text.length, 'type:', headers.get('content-type'), 'in', cacheUrl.href)
       // return resp;
       return new FakeResponse(url, headers, text);
     } else {
       // Pull mime type and payload from cache.
 
-      funcDetails('fileSystem.read(<%s>)', cacheUrl.pathname);
-      const image = await this.fileSystem.read(cacheUrl);
+      funcDetails('storage.read(<%s>)', cacheUrl.pathname);
+      const image = await this.storage.read(cacheUrl);
       // const [mediaType, text] = image.match(/([^\n]+)\n\n(.*)/s).slice(1);
       const eoh = image.indexOf('\n\n');
       const text = image.substr(eoh + 2);
