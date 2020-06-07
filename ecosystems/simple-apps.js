@@ -3,7 +3,7 @@
  * stores ShapeTree indexes in parent containers e.g. /Public or /SharedData
  *
  * This class provides:
- *   initialize - create a hierarchy with /apps, /cache and /shared
+ *   createSystemHierarchy - create a hierarchy with /apps, /cache and /shared
  *   indexInstalledShapeTree - assert that a local URL is an instance of a ShapeTree
  *   unindexInstalledShapeTree - remove assertion that a local URL is an instance of a ShapeTree
  *   reuseShapeTree - look in an LDPC for instances of a footprint
@@ -32,14 +32,14 @@ class FakeResponse {
 };
 
 class simpleApps {
-  constructor (storage, shapeTrees, rdfInterface) {
+  constructor (storage, shapeTree, rdfInterface) {
     this.storage = storage;
-    this.shapeTrees = shapeTrees;
+    this.shapeTree = shapeTree;
     this._rdfInterface = rdfInterface;
     this._mutex = new Mutex();
   }
 
-  initialize (baseUrl, LdpConf) {
+  createSystemHierarchy (baseUrl, LdpConf) {
     this.baseUrl = baseUrl;
     this.appsUrl = new URL(LdpConf.apps + '/', baseUrl);
     this.cacheUrl = new URL(LdpConf.cache + '/', baseUrl);
@@ -60,7 +60,7 @@ class simpleApps {
      * @param parentUrl - URL of parent container, e.g. URL('http://localhost/')
      */
     async function createContainers (spec, parentUrl)  {
-      const container = await new _simpleApps.shapeTrees.Container(new URL(spec.path, parentUrl), spec.title).ready;
+      const container = await new _simpleApps.shapeTree.Container(new URL(spec.path, parentUrl), spec.title).ready;
       spec.container = container; // in case someone needs them later.
       if (spec.children) {
         await Promise.all(spec.children.map(async child => {
@@ -94,7 +94,7 @@ class simpleApps {
 
   /** reuseShapeTree - look in an LDPC for instances of a footprint
    * @param parent: ShapeTree.ManagedContainer
-   * @param shapeTree: ShapeTree.RemoteShapeTree
+   * @param shapeTreeUrl: ShapeTree.RemoteShapeTree
    */
   reuseShapeTree (parent, shapeTreeUrl) {
     const q = this._rdfInterface.zeroOrOne(parent.graph, null, namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
@@ -110,16 +110,16 @@ class simpleApps {
    */
   /** registerInstance - register a new ShapeTree instance
    * @param appData: RDFJS DataSet
-   * @param shapeTree: ShapeTree.RemoteShapeTree
+   * @param shapeTreeUrl: ShapeTree.RemoteShapeTree
    * @param instanceUrl: location of the ShapeTree instance
    */
   async registerInstance(appData, shapeTreeUrl, instanceUrl) {
     const funcDetails = Details.extend(`registerInstance(<%{appData}>, <${shapeTreeUrl.href}> <%{instanceUrl.pathname}>)`);
     funcDetails('');
     funcDetails(`apps = new Container(${this.appsUrl.pathname}, 'Applications Directory', null, null)`);
-    const apps = await new this.shapeTrees.Container(this.appsUrl, 'Applications Directory', null, null).ready;
+    const apps = await new this.shapeTree.Container(this.appsUrl, 'Applications Directory', null, null).ready;
     funcDetails(`new Container(${new URL(appData.name + '/', this.appsUrl).pathname}, ${appData.name + ' Directory'}, null, null).ready`);
-    const app = await new this.shapeTrees.Container(new URL(appData.name + '/', this.appsUrl), appData.name + ' Directory', null, null).ready;
+    const app = await new this.shapeTree.Container(new URL(appData.name + '/', this.appsUrl), appData.name + ' Directory', null, null).ready;
     apps.addMember(app.url, shapeTreeUrl);
     funcDetails('apps.write');
     await apps.write();
