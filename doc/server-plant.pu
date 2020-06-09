@@ -19,7 +19,7 @@ activate ST
         group fetch remote ShapeTree
   		ST -> ST #eef: <color #066>shapeTreeRoot</color> = new RemoteShapeTree(<color #066>**%ShapeTree root%**</color>)
                 activate ST
-  		        ST -> cache: fetch(<color #066>**%ShapeTree root%**</color>)
+  		        ST -> cache: cachingFetch(<color #066>**%ShapeTree root%**</color>)
   			cache -> fs: rstat(hash(<color #066>**%ShapeTree root%**</color>))
   			cache ->]: fetch(<color #066>**%ShapeTree root%**</color>)
   			cache -> fs: write(hash(<color #066>**%ShapeTree root%**</color>), ...)
