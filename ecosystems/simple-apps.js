@@ -1,14 +1,26 @@
-/** SimpleApps - a simple Solid ecosystem
+/**
+ * This module provides an implementation of the ecosystem API:
+ * * createSystemHierarchy - create a hierarchy with /apps, /cache and /shared
+ * * indexInstalledShapeTree - assert that a local URL is an instance of a ShapeTree
+ * * unindexInstalledShapeTree - remove assertion that a local URL is an instance of a ShapeTree
+ * * reuseShapeTree - look in an LDPC for instances of a footprint
+ * * registerInstance - register a new ShapeTree instance
+ * * parseInstatiationPayload - parse payload when planting a ShapeTree
+ * @module SimpleApps
+ */
+
+/**
+ * @typedef ContainerSpec
+ * @type {object}
+ * @property {string} path - resource path from root of ShapeTree instance.
+ * @property {string} title - title of this Container.
+ * @property {ContainerSpec[]} [children] - nested children of this ldp:Container.
+ * @property {Container} [container] - container object for this ldp:Container in the instance.
+ */
+
+/* SimpleApps
  *
  * stores ShapeTree indexes in parent containers e.g. /Public or /SharedData
- *
- * This class provides:
- *   createSystemHierarchy - create a hierarchy with /apps, /cache and /shared
- *   indexInstalledShapeTree - assert that a local URL is an instance of a ShapeTree
- *   unindexInstalledShapeTree - remove assertion that a local URL is an instance of a ShapeTree
- *   reuseShapeTree - look in an LDPC for instances of a footprint
- *   registerInstance - register a new ShapeTree instance
- *   parseInstatiationPayload - parse payload when planting a ShapeTree
  */
 
 const Fs = require('fs');
@@ -31,7 +43,12 @@ class FakeResponse {
   text () { return Promise.resolve(this._text); }
 };
 
-class simpleApps {
+/** a simple ecosystem
+ * @param {Storage} storage - instance of Storage API
+ * @param {ShapeTree} shapeTree - ShapeTree library instance
+ * @param rdfInterface - instance of RDF Serializatin API
+*/
+class SimpleApps {
   constructor (storage, shapeTree, rdfInterface) {
     this.storage = storage;
     this.shapeTree = shapeTree;
@@ -39,28 +56,41 @@ class simpleApps {
     this._mutex = new Mutex();
   }
 
-  createSystemHierarchy (baseUrl, LdpConf) {
+  /** recursively create a container and any children containers.
+   *  @param {URL} baseUrl - root of tree, e.g. http://localhost/
+   *  @param {object} config - configuration object typically parsed from a config file
+   *  @example <caption>Create a resource hierarchy with /Cache, /Data and /Apps</caption>
+   *  // returns {...}
+   *  const hierarchy = await app.createSystemHierarchy({
+   *    "cache": "Cache",
+   *    "shared": "Data",
+   *    "apps": "Apps"
+   *  })
+   *  @returns {SimpleApps.ContainerSpec} - a ContainerSpec populated with Container objects
+   */
+  createSystemHierarchy (baseUrl, config) {
     this.baseUrl = baseUrl;
-    this.appsUrl = new URL(LdpConf.apps + '/', baseUrl);
-    this.cacheUrl = new URL(LdpConf.cache + '/', baseUrl);
-    const _simpleApps = this;
+    this.appsUrl = new URL(config.apps + '/', baseUrl);
+    this.cacheUrl = new URL(config.cache + '/', baseUrl);
+    const _SimpleApps = this;
     let containerHierarchy =
         {path: '/', title: "DocRoot Container", children: [
-          {path: LdpConf.apps + '/', title: "Applications Container"},
-          {path: LdpConf.cache + '/', title: "Cache Container"},
-          {path: LdpConf.shared + '/', title: "Shared Data Container"},
+          {path: config.apps + '/', title: "Applications Container"},
+          {path: config.cache + '/', title: "Cache Container"},
+          {path: config.shared + '/', title: "Shared Data Container"},
         ]};
     return createContainers(containerHierarchy, baseUrl);
 
     /** recursively create a container and any children containers.
-     * @param spec - {path, title, children: [...]}
+     * @param {PropertiesHash} foo - \{path, title, children: [...]\}
+     * @param spec - \{path, title, children: [...]\}
      * @param path - relative path from parent, e.g. ./ or ./Apps
      * @param title - text for the dc:title property
      * @param children - option list of specs of child containers
      * @param parentUrl - URL of parent container, e.g. URL('http://localhost/')
      */
     async function createContainers (spec, parentUrl)  {
-      const container = await new _simpleApps.shapeTree.Container(new URL(spec.path, parentUrl), spec.title).ready;
+      const container = await new _SimpleApps.shapeTree.Container(new URL(spec.path, parentUrl), spec.title).ready;
       spec.container = container; // in case someone needs them later.
       if (spec.children) {
         await Promise.all(spec.children.map(async child => {
@@ -74,9 +104,9 @@ class simpleApps {
   }
 
   /** indexInstalledShapeTree - assert that instanceUrl is an instance of shapeTreeUrl
-   * @param parent: ShapeTree.ManagedContainer
-   * @param instanceUrl: URL
-   * @param shapeTreeUrl: URL
+   * @param {ShapeTree.ManagedContainer} parent
+   * @param {URL} instanceUrl
+   * @param {URL} shapeTreeUrl
    */
   indexInstalledShapeTree (parent, instanceUrl, shapeTreeUrl) {
     parent.graph.addQuad(namedNode(instanceUrl.href), namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
@@ -84,17 +114,17 @@ class simpleApps {
   }
 
   /** unindexInstalledShapeTree - remove assertion that instanceUrl is an instance of shapeTreeUrl
-   * @param parent: ShapeTree.ManagedContainer
-   * @param instanceUrl: URL
-   * @param shapeTreeUrl: URL
+   * @param {ShapeTree.ManagedContainer} parent
+   * @param {URL} instanceUrl
+   * @param {URL} shapeTreeUrl
    */
   unindexInstalledShapeTree (parent, instanceUrl, shapeTreeUrl) {
     parent.graph.removeQuad(namedNode(instanceUrl.href), namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
   }
 
   /** reuseShapeTree - look in an LDPC for instances of a footprint
-   * @param parent: ShapeTree.ManagedContainer
-   * @param shapeTreeUrl: ShapeTree.RemoteShapeTree
+   * @param {ShapeTree.ManagedContainer} parent
+   * @param {ShapeTree.RemoteShapeTree} shapeTreeUrl
    */
   reuseShapeTree (parent, shapeTreeUrl) {
     const q = this._rdfInterface.zeroOrOne(parent.graph, null, namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
@@ -110,7 +140,7 @@ class simpleApps {
    */
   /** registerInstance - register a new ShapeTree instance
    * @param appData: RDFJS DataSet
-   * @param shapeTreeUrl: ShapeTree.RemoteShapeTree
+   * @param {ShapeTree.RemoteShapeTree} shapeTreeUrl
    * @param instanceUrl: location of the ShapeTree instance
    */
   async registerInstance(appData, shapeTreeUrl, instanceUrl) {
@@ -217,4 +247,4 @@ function cacheName (url) {
   return copy.href.replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-module.exports = simpleApps;
+module.exports = SimpleApps;

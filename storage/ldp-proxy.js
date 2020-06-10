@@ -1,3 +1,8 @@
+/** Store LDPRs and LDPCs to an LDP/Solid server using the LDP protocol
+ * @module LdpProxy
+ * @implements Storage
+ */
+
 const Fs = require('fs');
 const Path = require('path');
 const Log = require('debug')('								ldp-proxy');
@@ -6,21 +11,21 @@ const Prefixes = require('../lib/prefixes');
 const { DataFactory } = require("n3");
 const { namedNode, literal, defaultGraph, quad } = DataFactory;
 
-class ldpProxy {
+class LdpProxy {
   constructor (ldpServer, rdfInterface, fetch) {
     // Make sure there's only one storage interface for given ldpServer.
     // This will need to be moved to an async function if multiple apps
     // use a storage to coordinate access.
     const key = ldpServer;
-    if (ldpProxy[key])
-      return ldpProxy[key];
+    if (LdpProxy[key])
+      return LdpProxy[key];
 
     this.ldpServer = ldpServer;
     this.fetch = fetch;
     this._rdfInterface = rdfInterface;
-    ldpProxy[key] = this;
+    LdpProxy[key] = this;
     this.promises = {}; // hash[path, list[promises]]
-    this._hashCode = `ldpProxy(${JSON.stringify(key)})`; // Math.floor(Math.random()*2**32).toString(16); // identifies this singleton
+    this._hashCode = `LdpProxy(${JSON.stringify(key)})`; // Math.floor(Math.random()*2**32).toString(16); // identifies this singleton
   }
 
   hashCode () { return this._hashCode; }
@@ -230,7 +235,7 @@ class ldpProxy {
    */
   async ensureContainer (url, prefixes, title) {
     const funcDetails = Details.extend(`ensureContainer(<${url.pathname}>, ${JSON.stringify(prefixes)}, "title")`);
-    const _ldpProxy = this;
+    const _LdpProxy = this;
     const dummy = new URL('.DUMMY', new URL(url, this.ldpServer));
     await this.fetch(dummy, {
       method: 'PUT',
@@ -268,4 +273,4 @@ function parseLinks (resp) {
   */
 }
 
-module.exports = ldpProxy;
+module.exports = LdpProxy;

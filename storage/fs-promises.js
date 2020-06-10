@@ -1,24 +1,29 @@
+/** Store LDPRs and LDPCs into a filesystem using fs
+ * @module FsPromise
+ * @implements Storage
+ */
+
 const Fs = require('fs');
 const Path = require('path');
-const Log = require('debug')('								fsPromise');
+const Log = require('debug')('								FsPromise');
 const Details = Log.extend('details');
 
-class fsPromise {
+class FsPromise {
   constructor (docRoot, indexFile, rdfInterface, encoding = 'utf8') {
     // Make sure there's only one storage interface for given docRoot.
     // This will need to be moved to an async function if multiple apps
     // use a storage to coordinate access.
     const key = docRoot;
-    if (fsPromise[key])
-      return fsPromise[key];
+    if (FsPromise[key])
+      return FsPromise[key];
 
     this.docRoot = docRoot;
     this.indexFile = indexFile;
     this._rdfInterface = rdfInterface;
     this._encoding = encoding;
-    fsPromise[key] = this;
+    FsPromise[key] = this;
     this.promises = {}; // hash[path, list[promises]]
-    this._hashCode = `fsPromise(${JSON.stringify(key)})`; // Math.floor(Math.random()*2**32).toString(16); // identifies this singleton
+    this._hashCode = `FsPromise(${JSON.stringify(key)})`; // Math.floor(Math.random()*2**32).toString(16); // identifies this singleton
   }
 
   hashCode () { return this._hashCode; }
@@ -159,7 +164,7 @@ class fsPromise {
   async ensureContainer (url, prefixes, title) {
     const funcDetails = Details.extend(`ensureContainer(<${url.pathname}>, ${JSON.stringify(prefixes)}, "title")`);
     funcDetails('');
-    const _fsPromise = this;
+    const _FsPromise = this;
     return Fs.promises.mkdir(Path.join(this.docRoot, url.pathname)).then(
       async () => {
         const g = await makeContainer();
@@ -190,9 +195,9 @@ class fsPromise {
 <> a ldp:BasicContainer;
    dcterms:title "${title}".
 `;
-      const graph = await _fsPromise._rdfInterface.parseTurtle(body, url, prefixes);
+      const graph = await _FsPromise._rdfInterface.parseTurtle(body, url, prefixes);
       funcDetails('writeContainer(<%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes));
-      _fsPromise.writeContainer(url, graph, prefixes);
+      _FsPromise.writeContainer(url, graph, prefixes);
       return graph;
     }
   }
@@ -226,4 +231,4 @@ async function firstAvailable (parentUrl, slug, docRoot, type, f) {
   return [name, await f(new URL(name, parentUrl))];
 }
 
-module.exports = fsPromise;
+module.exports = FsPromise;

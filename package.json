@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "docs": "jsdoc -c .jsdoc-conf.js -d doc/ lib/* storage/* ecosystems/* README.md",
     "test": "echo \"See <https://github.com/shapetrees/test-suite#installrun-tests> for testing\" && exit 1",
     "webpack": "webpack"
   },
@@ -23,6 +24,7 @@
   },
   "devDependencies": {
     "debug": "^4.1.1",
+    "jsdoc": "^3.6.4",
     "webpack": "^4.43.0",
     "webpack-cli": "^3.3.11"
   }
