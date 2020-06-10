@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Class: ManagedContainer</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Class: ManagedContainer</h1>
+
+    
+
+
+
+
+<section>
+
+<header>
+    
+        <h2><span class="attribs"><span class="type-signature"></span></span>
+            <span class="ancestors"><a href="module-ShapeTree.html">ShapeTree</a>~</span>ManagedContainer<span class="signature">(url:, title:, shapeTreeUrl:, shapeTreeInstancePath:)</span><span class="type-signature"></span></h2>
+        
+            <div class="class-description"><p>ManagedContainer - an LDPC with shapeTrees</p></div>
+        
+    
+</header>
+
+<article>
+    <div class="container-overview">
+    
+        
+
+    
+    <h2>Constructor</h2>
+    
+
+    
+    <h4 class="name" id="ManagedContainer"><span class="type-signature"></span>new ManagedContainer<span class="signature">(url:, title:, shapeTreeUrl:, shapeTreeInstancePath:)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>url:</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>URL of Container</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>title:</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>dc:title of container | a [N3.Store, prefixex] for already-read graphs (hack).</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>shapeTreeUrl:</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>the URL of the ShapeTree that defines this instance.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>shapeTreeInstancePath:</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>the path from the root of this ShapeTree instance.</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="lib_shape-tree.js.html">lib/shape-tree.js</a>, <a href="lib_shape-tree.js.html#line235">line 235</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+    </div>
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+        <h3 class="subsection-title">Methods</h3>
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="nestContainer"><span class="type-signature">(async) </span>nestContainer<span class="signature">(url:URL)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>virtual nestContainer:Container - add a Container in this Container</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>url:URL</code></td>
+            
+
+            <td class="type">
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>URL of new Container</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="lib_shape-tree.js.html">lib/shape-tree.js</a>, <a href="lib_shape-tree.js.html#line281">line 281</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5>Returns:</h5>
+
+        
+<div class="param-desc">
+    <p>created Container object</p>
+</div>
+
+
+
+    
+
+
+
+
+
+        
+            
+
+    
+
+    
+    <h4 class="name" id="validatePayload"><span class="type-signature">(async) </span>validatePayload<span class="signature">(payload, location, mediaType, ldpType, entityUrl)</span><span class="type-signature"></span></h4>
+    
+
+    
+
+
+
+<div class="description">
+    <p>Validate member of this Container according to step in ShapeTree.</p>
+</div>
+
+
+
+
+
+
+
+
+
+    <h5>Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>payload</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>HTTP request body</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>location</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">URL</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>resource being created or replaced</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>mediaType</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>media type of payload</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>ldpType</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>&quot;Resource&quot;|&quot;Container&quot;|&quot;NonRDFSource&quot;</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>entityUrl</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">URL</span>
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>initial focus for validation</p></td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+<dl class="details">
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="lib_shape-tree.js.html">lib/shape-tree.js</a>, <a href="lib_shape-tree.js.html#line311">line 311</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+    
+
+    
+
+    
+</article>
+
+</section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-fetchSelfSigned.html">fetchSelfSigned</a></li><li><a href="module-FsPromise.html">FsPromise</a></li><li><a href="module-LdpProxy.html">LdpProxy</a></li><li><a href="module-RdfErrors.html">RdfErrors</a></li><li><a href="module-RdfSerializer.html">RdfSerializer</a></li><li><a href="module-ShapeTree.html">ShapeTree</a></li><li><a href="module-shapeTreeFetch.html">shapeTreeFetch</a></li><li><a href="module-SimpleApps.html">SimpleApps</a></li></ul><h3>Classes</h3><ul><li><a href="module-RdfErrors-MiscHttpError.html">MiscHttpError</a></li><li><a href="module-RdfErrors-MissingShapeError.html">MissingShapeError</a></li><li><a href="module-RdfErrors-NotFoundError.html">NotFoundError</a></li><li><a href="module-RdfErrors-ParserError.html">ParserError</a></li><li><a href="module-RdfErrors-ShapeTreeStructureError.html">ShapeTreeStructureError</a></li><li><a href="module-RdfErrors-UriTemplateMatchError.html">UriTemplateMatchError</a></li><li><a href="module-RdfErrors-ValidationError.html">ValidationError</a></li><li><a href="module-ShapeTree-Container.html">Container</a></li><li><a href="module-ShapeTree-ManagedContainer.html">ManagedContainer</a></li><li><a href="module-ShapeTree-RemoteShapeTree.html">RemoteShapeTree</a></li><li><a href="module-SimpleApps-SimpleApps.html">SimpleApps</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Wed Jun 10 2020 19:39:09 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

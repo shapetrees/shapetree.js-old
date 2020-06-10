@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: lib/rdf-serialization.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: lib/rdf-serialization.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** N3RdfSerializer - implement RDF Serializer interface using N3.js libraries
+ * @module RdfSerializer
+ * @implements RdfSerializer
+ */
+
+const N3 = require("n3");
+const { DataFactory } = N3;
+const { namedNode, literal, defaultGraph, quad } = DataFactory;
+const Relateurl = require('relateurl');
+const Jsonld = require('jsonld');
+const Errors = require('./rdf-errors');
+
+/**
+ * call parseJsonLD() or parseTurlt() depending on contentType
+ * @param {} body
+ * @param {} base
+ * @param {} contentType
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+function parseRdf (body, base, contentType, prefixes = {}) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`)
+  return contentType.split(/; */)[0] === 'application/ld+json'
+    ? parseJsonLd(body, base, prefixes)
+    : parseTurtle(body, base, prefixes);
+}
+
+/**
+ * synchronously parse turtle
+ * @param {} text
+ * @param {} base
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+function parseTurtleSync (text, base, prefixes) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`)
+  const store = new N3.Store();
+  store.addQuads(new N3.Parser({baseIRI: base.href, blankNodePrefix: "", format: "text/turtle"}).parse(text));
+  return store;
+}
+
+/**
+ * asynchronously parse Turtle
+ *
+ * @param {} text
+ * @param {} base
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+async function parseTurtle (text, base, prefixes) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`);
+  const store = new N3.Store();
+  return await new Promise((resolve, reject) => {
+    new N3.Parser({baseIRI: base.href, blankNodePrefix: "", format: "text/turtle"}).
+      parse(text,
+            function (error, triple, newPrefixes) {
+              if (prefixes) {
+                Object.assign(prefixes, newPrefixes)
+              }
+              if (error) {
+                reject(error);
+              } else if (triple) {
+                store.addQuad(triple);
+              } else {
+                resolve(store);
+              }
+            })
+  }).catch(e => {
+    throw new Errors.ParserError(e, text);
+  });
+}
+
+/**
+ * synchronously serialize Turtle
+ * @param {} graph
+ * @param {} base
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+function serializeTurtleSync (graph, base, prefixes) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`)
+  // Create RegExp to test for matching namespaces
+  // Is this faster than !Object.values(prefixes).find(ns => q[t].value.startsWith(ns) ?
+  const p = new RegExp('^(?:' + Object.values(prefixes).map(
+    ns => ns.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&amp;')
+  ).map(
+    nsr => '(?:' + nsr + ')'
+  ).join('|') + ')')
+
+  const writer = new N3.Writer({ prefixes });
+  writer.addQuads((graph.constructor === Array ? graph : graph.getQuads()).map(q => {
+    const terms = ['subject', 'object'];
+    terms.forEach(t => {
+      if (q[t].termType === 'NamedNode' // term is an IRI
+          &amp;&amp; !q[t].value.match(p))      // no applicable prefix
+      {
+        const old = q[t]
+        q[t] = namedNode(Relateurl.relate(base.href, q[t].value))
+        // This tests to make sure the URL is valid
+        // c.f. https://github.com/stevenvachon/relateurl/issues/28
+        try {
+          const effective = new URL(q[t].value, base).href;
+          if (old.value !== effective)
+            throw new Error(`${old.value} !== ${effective}`);
+        } catch (e) {
+          throw Error(`Relateurl.relate(${base.href}, ${old.value}) => "${q[t].value}" failed: ${e}`)
+        }
+      }
+    });
+    return q
+  }));
+  let text
+  writer.end((error, result) => {
+    if (error)
+      throw Error(error);
+    else
+      text = result
+  });
+  return text;
+}
+
+/**
+ * asynchronously serialize Turtle
+ * @param {} graph
+ * @param {} base
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+async function serializeTurtle (graph, base, prefixes) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`)
+  // Create RegExp to test for matching namespaces
+  // Is this faster than !Object.values(prefixes).find(ns => q[t].value.startsWith(ns) ?
+  const p = new RegExp('^(?:' + Object.values(prefixes).map(
+    ns => ns.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&amp;')
+  ).map(
+    nsr => '(?:' + nsr + ')'
+  ).join('|') + ')')
+
+  return await new Promise((resolve, reject) => {
+    const writer = new N3.Writer({ prefixes });
+    writer.addQuads((graph.constructor === Array ? graph : graph.getQuads()).map(q => {
+      const terms = ['subject', 'object'];
+      terms.forEach(t => {
+        if (q[t].termType === 'NamedNode'                            // term is an IRI
+            &amp;&amp; !q[t].value.match(p)                                  // no applicable prefix
+            &amp;&amp; new URL(base.href).host === new URL(q[t].value).host) // https://github.com/stevenvachon/relateurl/issues/28
+          q[t] = namedNode(Relateurl.relate(base.href, q[t].value, { output: Relateurl.ROOT_PATH_RELATIVE }))
+      });
+      return q
+    }));
+    writer.end((error, result) => {
+      if (error)
+        reject(error);
+      else
+        resolve(result)
+    });
+  })
+}
+
+/**
+ * asynchronously parse JSON-LD
+ * @param {} graph
+ * @param {} base
+ * @param {} prefixes
+ * @returns {}
+ * @throws {}
+ */
+async function parseJsonLd (text, base) {
+  if (!(base instanceof URL)) throw Error(`base ${base} must be an instance of URL`)
+  try {
+    const qz = await Jsonld.toRDF(JSON.parse(text), {format: "application/nquads", base: base.href});
+    // I think future minor versions will return an RDFJS list of quads.
+    return parseTurtle(qz, base);
+  } catch(e) {
+    throw new Errors.ParserError(e, text)
+  }
+}
+
+/**
+ * Expect exactly one response from a query
+ * @param {} g
+ * @param {} s
+ * @param {} p
+ * @param {} o
+ * @param {} nullable
+ * @returns {}
+ * @throws {}
+ */
+function expectOne (g, s, p, o, nullable) {
+
+  // Throw if s, p or o is an invalid query parameter.
+  // This is fussier than N3.js.
+  const rendered = ([s, p, o]).map(renderRdfTerm).join(' ')
+
+  const res = g.getQuads(s, p, o);
+  if (res.length === 0) {
+    if (nullable)
+      return null;
+    throw Error(`no matches for { ${rendered} }`);
+  }
+  if (res.length > 1)
+    throw Error(`expected one answer to { ${rendered} }; got ${res.length}`);
+  return res[0];
+}
+
+function zeroOrOne (g, s, p, o) { return expectOne(g, s, p, o, true); }
+function one (g, s, p, o) { return expectOne(g, s, p, o, false); }
+
+// good-enough rendering for terms.
+/**
+ * Do a reasonable job rendering an RDF term
+ * @param {} t
+ * @returns {}
+ * @throws {}
+ */
+function renderRdfTerm (t) {
+  return t === null ? '_'
+  // : typeof t === 'string' ? `&lt;${t}>` disabled even though N3.js allows bare IRIs.
+    : t.termType === 'NamedNode' ? `&lt;${t.value}>`
+    : t.termType === 'BlankNode' ? `_:${t.value}`
+    : t.termType === 'Literal' ? `"${t.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+    : (() => { throw Error(`${t} is not an RDFJS term`) })();
+}
+
+const RdfSerializer = {
+  parseRdf,
+  parseTurtleSync,
+  parseTurtle,
+  serializeTurtleSync,
+  serializeTurtle,
+  parseJsonLd,
+  zeroOrOne,
+  one,
+  renderRdfTerm,
+};
+module.exports = RdfSerializer;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-fetchSelfSigned.html">fetchSelfSigned</a></li><li><a href="module-FsPromise.html">FsPromise</a></li><li><a href="module-LdpProxy.html">LdpProxy</a></li><li><a href="module-RdfErrors.html">RdfErrors</a></li><li><a href="module-RdfSerializer.html">RdfSerializer</a></li><li><a href="module-ShapeTree.html">ShapeTree</a></li><li><a href="module-shapeTreeFetch.html">shapeTreeFetch</a></li><li><a href="module-SimpleApps.html">SimpleApps</a></li></ul><h3>Classes</h3><ul><li><a href="module-RdfErrors-MiscHttpError.html">MiscHttpError</a></li><li><a href="module-RdfErrors-MissingShapeError.html">MissingShapeError</a></li><li><a href="module-RdfErrors-NotFoundError.html">NotFoundError</a></li><li><a href="module-RdfErrors-ParserError.html">ParserError</a></li><li><a href="module-RdfErrors-ShapeTreeStructureError.html">ShapeTreeStructureError</a></li><li><a href="module-RdfErrors-UriTemplateMatchError.html">UriTemplateMatchError</a></li><li><a href="module-RdfErrors-ValidationError.html">ValidationError</a></li><li><a href="module-ShapeTree-Container.html">Container</a></li><li><a href="module-ShapeTree-ManagedContainer.html">ManagedContainer</a></li><li><a href="module-ShapeTree-RemoteShapeTree.html">RemoteShapeTree</a></li><li><a href="module-SimpleApps-SimpleApps.html">SimpleApps</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Wed Jun 10 2020 19:39:09 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

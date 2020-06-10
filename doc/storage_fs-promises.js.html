@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: storage/fs-promises.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: storage/fs-promises.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** Store LDPRs and LDPCs into a filesystem using fs
+ * @module FsPromise
+ * @implements Storage
+ */
+
+const Fs = require('fs');
+const Path = require('path');
+const Log = require('debug')('								FsPromise');
+const Details = Log.extend('details');
+
+class FsPromise {
+  constructor (docRoot, indexFile, rdfInterface, encoding = 'utf8') {
+    // Make sure there's only one storage interface for given docRoot.
+    // This will need to be moved to an async function if multiple apps
+    // use a storage to coordinate access.
+    const key = docRoot;
+    if (FsPromise[key])
+      return FsPromise[key];
+
+    this.docRoot = docRoot;
+    this.indexFile = indexFile;
+    this._rdfInterface = rdfInterface;
+    this._encoding = encoding;
+    FsPromise[key] = this;
+    this.promises = {}; // hash[path, list[promises]]
+    this._hashCode = `FsPromise(${JSON.stringify(key)})`; // Math.floor(Math.random()*2**32).toString(16); // identifies this singleton
+  }
+
+  hashCode () { return this._hashCode; }
+
+  // Status
+
+  /** rstat:object - Describe existing resource.
+   * @returns: {
+   *   isContainer - whether the resource is a Container
+   * }
+   * @throws: resource does not exist
+   * to test for existance, use
+   *     rstat(myUrl).then(stat => true, e => false)
+   */
+  async rstat (url) {
+    Details('rstat(&lt;%s>)', url.pathname);
+    const lstat = await Fs.promises.lstat(Path.join(this.docRoot, url.pathname));
+    return { isContainer: lstat.isDirectory() };
+  }
+
+
+  // R/W/D Resources
+
+  /** read:string - Read contents of resource.
+   * @returns: contents
+   * @throws: resource does not exist
+   */
+  async read (url) {
+    Details('read(&lt;%s>)', url.pathname);
+    return Fs.promises.readFile(Path.join(this.docRoot, url.pathname), this._encoding);
+  }
+
+  /** write:undefined - Write contents to resource.
+   * @param body: contents to be written
+   * @throws: resource does not exist
+   */
+  async write (url, body) {
+    Details('write(&lt;%s>, "%s...")', url.pathname, body.substr(0, 60).replace(/\n/g, '\\n'));
+    return Fs.promises.writeFile(Path.join(this.docRoot, url.pathname), body, {encoding: this._encoding});
+  }
+
+  /** invent:[URL, undefined] - create a new ldp:Resource
+   * @param parentUrl:URL - URL of parent Container
+   * @param requestedName:string - suggested name for created Container
+   * @param body:string - contents of Resource
+   * @param mediaType:string - media type of Resource
+   * @returns: [newly-minuted name, undefined]
+   */
+  async invent (parentUrl, requestedName, body, mediaType) {
+    Details('invent(&lt;%s>, "%s", %d characters, "")', parentUrl.pathname, requestedName, body.length, mediaType);
+    return firstAvailable(parentUrl, requestedName, this.docRoot, 'Resource',
+                          url => this.write(url, body));
+  }
+
+  /** remove:undefined - Delete resource.
+   * @throws: resource does not exist
+   */
+  async remove (url) {
+    Details('remove(&lt;%s>)', url.pathname);
+    return Fs.promises.unlink(Path.join(this.docRoot, url.pathname));
+  }
+
+  // R/W/D Containers
+
+  /** readContainer:RDFJS Store - Read body of Container.
+   * @returns: body parsed as RDF
+   * @param prefixes: where to capures prefixes from parsing
+   * @throws:
+   *   resource does not exist
+   *   parser failures
+   */
+  async readContainer (url, prefixes) {
+    Details('readContainer(&lt;%s>, %s)', url.pathname, JSON.stringify(prefixes))
+    const text = await Fs.promises.readFile(Path.join(this.docRoot, this.getIndexFilePath(url)), this._encoding);
+    return this._rdfInterface.parseTurtle(text, url, prefixes);
+  }
+
+  /** writeContainer:undefined - Read body of Container.
+   * @param graph: data to be written
+   * @param prefixes: prefixes to be used in serialization
+   * @throws:
+   *   resource does not exist
+   *   serializer failures
+   */
+  async writeContainer (url, graph, prefixes) {
+    Details('writeContainer(&lt;%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes))
+    const body = await this._rdfInterface.serializeTurtle(graph, url, prefixes);
+    return Fs.promises.writeFile(Path.join(this.docRoot, this.getIndexFilePath(url)), body, {encoding: this._encoding});
+  }
+
+  /** inventContainer:[URL, Store] - create a new ldp:Resource
+   * @param parentUrl:URL - URL of parent Container
+   * @param requestedName:string - suggested name for created Container
+   *   requestedName is expected to include a trailing '/'
+   * @param title:string - suggsted title for created Container
+   * @param prefixes:object - where to place prefixes parsed from Container body
+   * @returns: [newly-minuted URL, Container graph]
+   */
+  async inventContainer (parentUrl, requestedName, title, prefixes = {}) {
+    Details('inventContainer(&lt;%s>, "%s", "${title}", %s)', parentUrl.pathname, requestedName, JSON.stringify(prefixes));
+    return firstAvailable(parentUrl, requestedName, this.docRoot, 'Container',
+                          async url => (await this.ensureContainer(url, prefixes, title))[1]); // just the Container graph.
+  }
+
+  /** remove:undefined - Recursively remove a Container.
+   * @throws: resource does not exist
+   */
+  async removeContainer (url) {
+    Details('remove(&lt;%s>)', url.pathname);
+    const path = Path.join(this.docRoot, url.pathname);
+    const files = await Fs.promises.readdir(path);
+    for (const f of files) {
+      const child = Path.join(path, f);
+      const lstat = await Fs.promises.lstat(child);
+      const childUrl = new URL(f, url);
+      if (lstat.isDirectory()) {
+        childUrl.pathname += '/'
+        await this.removeContainer(childUrl);
+      } else {
+        await this.remove(childUrl);
+      }
+    }
+    await Fs.promises.rmdir(path);
+  }
+
+
+  /** ensureContainer:object - Make Container with invented contents if it doesn't already exist.
+   * @param prefixes: prefixes helpful for serialization.
+   * @param title: dc:title property to add to invented contents.
+   * @returns: [
+   *   boolean - whether Container is new (didn't exist),
+   *   RDFJS Store - data either read from Container or written to Container
+   * ]
+   * @throws:
+   *   resource does not exist
+   *   serializer failures
+   */
+  async ensureContainer (url, prefixes, title) {
+    const funcDetails = Details.extend(`ensureContainer(&lt;${url.pathname}>, ${JSON.stringify(prefixes)}, "title")`);
+    funcDetails('');
+    const _FsPromise = this;
+    return Fs.promises.mkdir(Path.join(this.docRoot, url.pathname)).then(
+      async () => {
+        const g = await makeContainer();
+        return [true, g];
+      },
+      async e => {
+        /* istanbul ignore else */
+        if (e.code === 'EEXIST') {
+          try {
+            funcDetails('this.readContainer(&lt;%s>, %s)', url.pathname, JSON.stringify(prefixes));
+            const g = await this.readContainer(url, prefixes);
+            return [false, g];
+          } catch (e) {
+            const g = await makeContainer();
+            return [true, g];
+          }
+        }
+        /* istanbul ignore next */
+        throw e;
+      }
+    )
+
+    async function makeContainer () {
+      const body = `
+@prefix dcterms: &lt;http://purl.org/dc/terms/>.
+@prefix ldp: &lt;http://www.w3.org/ns/ldp#>.
+
+&lt;> a ldp:BasicContainer;
+   dcterms:title "${title}".
+`;
+      const graph = await _FsPromise._rdfInterface.parseTurtle(body, url, prefixes);
+      funcDetails('writeContainer(&lt;%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes));
+      _FsPromise.writeContainer(url, graph, prefixes);
+      return graph;
+    }
+  }
+
+  /** getIndexFilePath:string - Get the index Resource for a given Container.
+   */
+  getIndexFilePath (url) { // This is in the public API 'cause the static file server needs it.
+    return Path.join(url.pathname, this.indexFile);
+  }
+}
+
+async function exists (path) {
+  return Fs.promises.stat(path).then(s => true, e => false);
+}
+
+/** firstAvailable:string|* - find a name for a new container member
+ * @returns: name if f is null, f(name) otherwise
+ */
+async function firstAvailable (parentUrl, slug, docRoot, type, f) {
+  let unique = 0;
+  let name;
+  while (await exists(Path.join(docRoot,
+    new URL(
+      name = (slug || type) + (
+        unique > 0
+          ? '-' + unique
+          : ''
+      ) + (type === 'Container' ? '/' : ''), parentUrl).pathname)
+  ))
+    ++unique;
+  return [name, await f(new URL(name, parentUrl))];
+}
+
+module.exports = FsPromise;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-fetchSelfSigned.html">fetchSelfSigned</a></li><li><a href="module-FsPromise.html">FsPromise</a></li><li><a href="module-LdpProxy.html">LdpProxy</a></li><li><a href="module-RdfErrors.html">RdfErrors</a></li><li><a href="module-RdfSerializer.html">RdfSerializer</a></li><li><a href="module-ShapeTree.html">ShapeTree</a></li><li><a href="module-shapeTreeFetch.html">shapeTreeFetch</a></li><li><a href="module-SimpleApps.html">SimpleApps</a></li></ul><h3>Classes</h3><ul><li><a href="module-RdfErrors-MiscHttpError.html">MiscHttpError</a></li><li><a href="module-RdfErrors-MissingShapeError.html">MissingShapeError</a></li><li><a href="module-RdfErrors-NotFoundError.html">NotFoundError</a></li><li><a href="module-RdfErrors-ParserError.html">ParserError</a></li><li><a href="module-RdfErrors-ShapeTreeStructureError.html">ShapeTreeStructureError</a></li><li><a href="module-RdfErrors-UriTemplateMatchError.html">UriTemplateMatchError</a></li><li><a href="module-RdfErrors-ValidationError.html">ValidationError</a></li><li><a href="module-ShapeTree-Container.html">Container</a></li><li><a href="module-ShapeTree-ManagedContainer.html">ManagedContainer</a></li><li><a href="module-ShapeTree-RemoteShapeTree.html">RemoteShapeTree</a></li><li><a href="module-SimpleApps-SimpleApps.html">SimpleApps</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Wed Jun 10 2020 19:39:09 GMT+0200 (Central European Summer Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
