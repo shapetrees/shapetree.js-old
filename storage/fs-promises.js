@@ -7,18 +7,22 @@ const Fs = require('fs');
 const Path = require('path');
 const Log = require('debug')('								FsPromise');
 const Details = Log.extend('details');
+const CfgKeys = ['documentRoot', 'indexFile', 'metaDataSuffix'];
 
 class FsPromise {
-  constructor (docRoot, indexFile, rdfInterface, encoding = 'utf8') {
+  constructor (config, rdfInterface, encoding = 'utf8') {
     // Make sure there's only one storage interface for given docRoot.
     // This will need to be moved to an async function if multiple apps
     // use a storage to coordinate access.
-    const key = docRoot;
+    if (typeof config !== 'object' || CfgKeys.find(k => !(k in config)))
+      throw Error(`usage: FsPromise({${CfgKeys.map(k => `${k}: ...`).join(', ')}}, rdf-serializer, encoding="utf8"`);
+    const key = config.docRoot;
     if (FsPromise[key])
       return FsPromise[key];
 
-    this.docRoot = docRoot;
-    this.indexFile = indexFile;
+    this.docRoot = config.documentRoot;
+    this.indexFile = config.indexFile;
+    this.metaDataSuffix = config.metaDataSuffix;
     this._rdfInterface = rdfInterface;
     this._encoding = encoding;
     FsPromise[key] = this;
@@ -41,7 +45,11 @@ class FsPromise {
   async rstat (url) {
     Details('rstat(<%s>)', url.pathname);
     const lstat = await Fs.promises.lstat(Path.join(this.docRoot, url.pathname));
-    return { isContainer: lstat.isDirectory() };
+    return {
+      isContainer: lstat.isDirectory(),
+      isMetaData: url.pathname.endsWith(this.metaDataSuffix),
+      metaDataLocation: new URL(this.getMetaDataFilePath(url), url)
+    };
   }
 
 
@@ -202,10 +210,53 @@ class FsPromise {
     }
   }
 
+  /** readMetaData:RDFJS Store - Read metadata resoure.
+   * @returns: body parsed as RDF or empty store if non-existent
+   * @param prefixes: where to capures prefixes from parsing
+   * @throws:
+   *   parser failures
+   */
+  async readMetaData (url, prefixes) {
+    Details('readMetaData(<%s>, %s)', url.pathname, JSON.stringify(prefixes))
+    let text = null;
+    try {
+      text = await Fs.promises.readFile(Path.join(this.docRoot, this.getMetaDataFilePath(url)), this._encoding);
+    } catch (e) {
+      if (e.code === 'ENOENT')
+        text = '';
+      else
+        throw e;
+    }
+    return this._rdfInterface.parseTurtle(text, url, prefixes);
+  }
+
+  /** writeMetaData:undefined - Write a metadata resource.
+   * @param graph: (meta)data to be written
+   * @param prefixes: prefixes to be used in serialization
+   * @throws:
+   *   parent directory does not exist
+   *   serializer failures
+   */
+  async writeMetaData (url, graph, prefixes) {
+    Details('writeMetaData(<%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes))
+    const body = await this._rdfInterface.serializeTurtle(graph, url, prefixes);
+    return Fs.promises.writeFile(Path.join(this.docRoot, this.getMetaDataFilePath(url)), body, {encoding: this._encoding});
+  }
+
   /** getIndexFilePath:string - Get the index Resource for a given Container.
    */
   getIndexFilePath (url) { // This is in the public API 'cause the static file server needs it.
-    return Path.join(url.pathname, this.indexFile);
+    return url.pathname.endsWith(this.indexFile)
+      ? url.pathname
+      : Path.join(url.pathname, this.indexFile);
+  }
+
+  /** getMetaDataFilePath:string - Get the metaData Resource for a given Container.
+   */
+  getMetaDataFilePath (url) { // This is in the public API 'cause the static file server needs it.
+    return url.pathname.endsWith(this.metaDataSuffix)
+      ? url.pathname
+      : Path.join(url.pathname, this.metaDataSuffix);
   }
 }
 

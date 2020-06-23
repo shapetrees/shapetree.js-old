@@ -54,11 +54,13 @@ class LdpProxy {
       });
       throw e;
     }
-    const type = parseLinks(resp).type;
+    const links = parseLinks(resp);
     return {
-      isContainer: type
-        ? type.substr(Prefixes.ns_ldp.length) === 'Container'
-        : false
+      isContainer: links.type
+        ? links.type.substr(Prefixes.ns_ldp.length) === 'Container'
+        : false,
+      isMetaData: new URL(links.metadata, url) === url, // @@ sensitive to "http://mydomain..." !== "http://MyDoMaIn..." ?
+      metaDataLocation: new URL(links.metadata, url)
     };
   }
 
