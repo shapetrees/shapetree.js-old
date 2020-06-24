@@ -44,12 +44,29 @@ class FsPromise {
    */
   async rstat (url) {
     Details('rstat(<%s>)', url.pathname);
-    const lstat = await Fs.promises.lstat(Path.join(this.docRoot, url.pathname));
-    return {
-      isContainer: lstat.isDirectory(),
-      isMetaData: url.pathname.endsWith(this.metaDataSuffix),
-      metaDataLocation: new URL(this.getMetaDataFilePath(url), url)
-    };
+    if (url.pathname.endsWith(this.metaDataSuffix)) {
+      const origUrl = new URL(url.href.substr(0, url.href.length - this.metaDataSuffix.length), url);
+      const origLStat = await Fs.promises.lstat(Path.join(this.docRoot, origUrl.pathname));
+      let size = 0;
+      try {
+        size = (await Fs.promises.lstat(Path.join(this.docRoot, url.pathname))).size;
+      } catch (e) {
+      }
+      return {
+        isContainer: false,
+        isMetaData: true,
+        metaDataLocation: url,
+        size
+      };
+    } else {
+      const lstat = await Fs.promises.lstat(Path.join(this.docRoot, url.pathname));
+      return {
+        isContainer: lstat.isDirectory(),
+        isMetaData: false,
+        metaDataLocation: new URL(await this.getMetaDataFilePath(url), url),
+        size: lstat.size
+      };
+    }
   }
 
 
@@ -212,7 +229,7 @@ class FsPromise {
 
   /** readMetaData:RDFJS Store - Read metadata resoure.
    * @returns: body parsed as RDF or empty store if non-existent
-   * @param prefixes: where to capures prefixes from parsing
+   * @param prefixes: where to capure prefixes from parsing
    * @throws:
    *   parser failures
    */
@@ -220,7 +237,7 @@ class FsPromise {
     Details('readMetaData(<%s>, %s)', url.pathname, JSON.stringify(prefixes))
     let text = null;
     try {
-      text = await Fs.promises.readFile(Path.join(this.docRoot, this.getMetaDataFilePath(url)), this._encoding);
+      text = await Fs.promises.readFile(Path.join(this.docRoot, await this.getMetaDataFilePath(url)), this._encoding);
     } catch (e) {
       if (e.code === 'ENOENT')
         text = '';
@@ -239,8 +256,9 @@ class FsPromise {
    */
   async writeMetaData (url, graph, prefixes) {
     Details('writeMetaData(<%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes))
-    const body = await this._rdfInterface.serializeTurtle(graph, url, prefixes);
-    return Fs.promises.writeFile(Path.join(this.docRoot, this.getMetaDataFilePath(url)), body, {encoding: this._encoding});
+    const mdUrl = await this.getMetaDataFilePath(url);
+    const body = await this._rdfInterface.serializeTurtle(graph, new URL(mdUrl, url), prefixes);
+    return Fs.promises.writeFile(Path.join(this.docRoot, mdUrl), body, {encoding: this._encoding});
   }
 
   /** getIndexFilePath:string - Get the index Resource for a given Container.
@@ -248,15 +266,17 @@ class FsPromise {
   getIndexFilePath (url) { // This is in the public API 'cause the static file server needs it.
     return url.pathname.endsWith(this.indexFile)
       ? url.pathname
-      : Path.join(url.pathname, this.indexFile);
+      : url.pathname + this.indexFile;
   }
 
-  /** getMetaDataFilePath:string - Get the metaData Resource for a given Container.
+  /** getMetaDataFilePath:string - Get the metaData Resource path for a given Container. @@ return a URL
    */
-  getMetaDataFilePath (url) { // This is in the public API 'cause the static file server needs it.
-    return url.pathname.endsWith(this.metaDataSuffix)
-      ? url.pathname
-      : Path.join(url.pathname, this.metaDataSuffix);
+  async getMetaDataFilePath (url) {
+    return Promise.resolve(
+      url.pathname.endsWith(this.metaDataSuffix)
+        ? url.pathname
+        : url.pathname + this.metaDataSuffix
+    );
   }
 }
 

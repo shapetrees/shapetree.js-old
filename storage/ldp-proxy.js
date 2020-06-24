@@ -5,7 +5,7 @@
 
 const Fs = require('fs');
 const Path = require('path');
-const Log = require('debug')('								ldp-proxy');
+const Log = require('debug')('ldp-proxy');
 const Details = Log.extend('details');
 const Prefixes = require('../lib/prefixes');
 const { DataFactory } = require("n3");
@@ -110,9 +110,9 @@ class LdpProxy {
     if (resp.status !== 201) {
       const e = Error(`POST ${requestedName} to ${parentUrl.href} expected 201, got ${resp.status}`);
       try {
-        e.body = await resp.text()
+        e.body = await resp.text();
       } catch (e) {
-        e.body = `response text unavailable: ${e}`
+        e.body = `response text unavailable: ${e}`;
       }
       throw e;
     }
@@ -246,6 +246,49 @@ class LdpProxy {
     });
     await this.remove(dummy);
     return [true, await this.readContainer(url, prefixes)];
+  }
+
+  /** readMetaData:RDFJS Store - Read metadata resoure.
+   * @returns: body parsed as RDF or empty store if non-existent
+   * @param prefixes: where to capure prefixes from parsing
+   * @throws:
+   *   parser failures
+   */
+  async readMetaData (url, prefixes) {
+    Details('readMetaData(<%s>, %s)', url.pathname, JSON.stringify(prefixes));
+    const rstat = await this.rstat(url);
+    const resp = await this.fetch(rstat.metaDataLocation);
+    let text = await resp.text();
+    if (!resp.ok)
+      throw Error(`failed to fetch metadata for ${url.href}`);
+    return this._rdfInterface.parseTurtle(text, url, prefixes);
+  }
+
+  /** writeMetaData:undefined - Write a metadata resource.
+   * @param graph: (meta)data to be written
+   * @param prefixes: prefixes to be used in serialization
+   * @throws:
+   *   parent directory does not exist
+   *   serializer failures
+   */
+  async writeMetaData (url, graph, prefixes) {
+    Details('writeMetaData(<%s>, n3.Store() with %d quads, %s)', url.pathname, graph.size, JSON.stringify(prefixes))
+    const body = await this._rdfInterface.serializeTurtle(graph, url, prefixes);
+    const rstat = await this.rstat(url);
+    const resp = await this.fetch(rstat.metaDataLocation, {
+      method: 'PUT',
+      headers: {'content-type': 'text/turtle'},
+      body
+    });
+    if (!resp.ok)
+      throw Error(`Failed to write metadata graph of ${graph.size} quads to <${url.href}>.`);
+  }
+
+  /** getMetaDataFilePath:string - Get the metaData Resource path for a given Container. @@ return a URL
+   */
+  async getMetaDataFilePath (url) {
+    const rstat = await this.rstat(url);
+    return rstat.metaDataLocation.pathname;
   }
 }
 
