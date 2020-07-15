@@ -189,19 +189,21 @@ class SimpleApps {
 
   /** a caching wrapper for fetch
    */
-  async cachingFetch (url, /* istanbul ignore next */opts = {}) {
-    // const funcDetails = Details.extend(`cachingFetch(<${url.href}>, ${JSON.stringify(opts)})`);
-    const funcDetails = require('debug')('						cachingFetch').extend('details').extend(`cachingFetch(<${url.href}>, ${JSON.stringify(opts)})`);
+  async cachingFetch (url, /* istanbul ignore next */options = {}) {
+    // const funcDetails = Details.extend(`cachingFetch(<${url.href}>, ${JSON.stringify(options)})`);
+    const funcDetails = require('debug')('						cachingFetch').extend('details').extend(`cachingFetch(<${url.href}>, ${JSON.stringify(options)})`);
     funcDetails('');
     const prefixes = {};
     const cacheUrl = new URL(cacheName(url.href), this.cacheUrl);
     funcDetails('this.storage.rstat(<%s>)', cacheUrl.pathname);
-    if (!await this.storage.rstat(cacheUrl).then(stat => true, e => false)) {
+    if (new URL('/', this.cacheUrl).href === new URL('/', url).href) {
+      return Fetch(url, options);
+    } else if (!await this.storage.rstat(cacheUrl).then(stat => true, e => false)) {
       // The first time this url was seen, put the mime type and payload in the cache.
 
       Log('cache miss on', url.href, '/', cacheUrl.href)
       funcDetails('Errors.getOrThrow(Fetch, <%s>)', url.pathname);
-      const resp = await Errors.getOrThrow(Fetch, url);
+      const resp = await Errors.getOrThrow(Fetch, url, options);
       const text = await resp.text();
       const headers = Array.from(resp.headers).filter(
         // Hack: remove date and time to reduce visible churn in cached contents.
