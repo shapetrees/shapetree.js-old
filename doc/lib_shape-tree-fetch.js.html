@@ -73,11 +73,11 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
         throwIfNotFound(rstat, requestUrl, options.method);
         // Store a new resource or create a new ShapeTree
         funcDetails(`ShapeTree.loadContainer(&lt;${requestUrl.pathname}>)`);
-        const postedContainer = NoShapeTrees
+        const parentContainer = NoShapeTrees
               ? await new ShapeTree.Container(requestUrl).ready
               : await ShapeTree.loadContainer(requestUrl);
 
-        const ldpType = links.type.substr(Prefixes.ns_ldp.length); // links.type ? links.type.substr(Prefixes.ns_ldp.length) : null;
+        const ldpType = links.type.substr(Prefixes.ldp.length); // links.type ? links.type.substr(Prefixes.ldp.length) : null;
         const requestedName = (options.headers.slug || ldpType) + (ldpType === 'Container' ? '/' : '');
         const payload = options.body.toString('utf8');
         const mediaType = options.headers['content-type'];
@@ -91,17 +91,17 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
           // Create ShapeTree instance and tell ecosystem about it.
           const shapeTreeUrl = new URL(links.shapeTree, requestUrl); // !! should respect anchor per RFC5988 §5.2
           // Ask ecosystem if we can re-use an old ShapeTree instance.
-          let location = Ecosystem.reuseShapeTree(postedContainer, shapeTreeUrl)
+          let location = Ecosystem.reuseShapeTree(parentContainer, shapeTreeUrl)
           if (location) {
             Log('plant reused', location.pathname.substr(1));
           } else {
-            funcDetails(`ecosystem.plantShapeTreeInstance(&lt;${shapeTreeUrl.href}>, postedContainer(&lt;${postedContainer.url.pathname}>), "${requestedName.replace(/\/$/, '')}", n3.Store() with ${payloadGraph.size} quads)`);
-            location = await postedContainer.plantShapeTreeInstance(shapeTreeUrl, requestedName.replace(/\/$/, ''), payloadGraph);
+            funcDetails(`ecosystem.plantShapeTreeInstance(&lt;${shapeTreeUrl.href}>, parentContainer(&lt;${parentContainer.url.pathname}>), "${requestedName.replace(/\/$/, '')}", ${links.root || ''})`);
+            location = await parentContainer.plantShapeTreeInstance(shapeTreeUrl, requestedName.replace(/\/$/, ''), links.root || '');
 
-            funcDetails(`indexInstalledShapeTree(postedContainer(&lt;${postedContainer.url.pathname}>), &lt;${location.pathname}>, &lt;${shapeTreeUrl.href}>)`);
-            Ecosystem.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
-            funcDetails(`postedContainer.write()`);
-            await postedContainer.write();
+            funcDetails(`indexInstalledShapeTree(parentContainer(&lt;${parentContainer.url.pathname}>), &lt;${location.pathname}>, &lt;${shapeTreeUrl.href}>)`);
+            Ecosystem.indexInstalledShapeTree(parentContainer, location, shapeTreeUrl);
+            funcDetails(`parentContainer.write()`);
+            await parentContainer.write();
             Log('plant created', location.pathname.substr(1));
           }
 
@@ -109,36 +109,46 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
           const appData = Ecosystem.parseInstatiationPayload(payloadGraph);
           funcDetails(`Ecosystem.registerInstance(appData, shapeTreeUrl, location)`);
           const [responseGraph, prefixes] = await Ecosystem.registerInstance(appData, shapeTreeUrl, location);
-          const rebased = await rdfInterface.serializeTurtle(responseGraph, postedContainer.url, prefixes);
+          const rebased = await rdfInterface.serializeTurtle(responseGraph, parentContainer.url, prefixes);
 
           resp.headers.set('Location', location.href);
+          resp.headers.set('Link', `&lt;${(await storage.rstat(location.href)).metaDataLocation}>; rel="metadata"`);
           resp.status = 201; // Should ecosystem be able to force a 304 Not Modified ?
           resp.headers.set('Content-type', 'text/turtle');
           resp._text = rebased;
           return Promise.resolve(resp);
         } else {
-          if (!(postedContainer instanceof ShapeTree.ManagedContainer))
+          if (!(parentContainer instanceof ShapeTree.ManagedContainer))
             return nextFetch(url, options);
 
           // Validate the posted data according to the ShapeTree rules.
           const approxLocation = new URL(requestedName, requestUrl);
           const entityUrl = new URL(links.root, approxLocation); // !! should respect anchor per RFC5988 §5.2
-          const [payloadGraph, dirMaker] =
-                await postedContainer.validatePayload(payload, approxLocation, mediaType, ldpType, entityUrl);
+          const [payloadGraph, dirMaker, step] =
+                await parentContainer.validatePayload(payload, approxLocation, mediaType, ldpType, entityUrl);
 
           const ret = await nextFetch(url, options);
+          const location = new URL(ret.headers.get('location'));
           try {
             if (ldpType === 'Container') {
               // If it's a Container, instantiate nested Containers
-              const location = new URL(ret.headers.get('location'));
               const created = await ShapeTree.loadContainer(location);
               await dirMaker(created);
-              const newShapeTreeInstancePath = postedContainer.shapeTreeInstancePath + location.pathname.substr(postedContainer.url.pathname.length);
-              await created.asManagedContainer(postedContainer.shapeTreeUrl, newShapeTreeInstancePath)
+              const newShapeTreeInstancePath = parentContainer.shapeTreeInstancePath + location.pathname.substr(parentContainer.url.pathname.length);
+              await created.asManagedContainer(parentContainer.shapeTreeUrl, newShapeTreeInstancePath, new URL(links.root || '', location))
               await created.write();
+            } else {
+              const added = location.href.substr(parentContainer.url.href.length)
+              await ShapeTree.mergeTreeMetadata(location, new URL(step.node.value), pathAppend(step.shapeTreeInstancePath, added), new URL(links.root, url), {});
+
+function pathAppend () { // export from shape-tree.js?
+  const [base, ...rest] = Array.from(arguments);
+  return [].concat.call([base === '.' ? '' : base], rest).join('');
+}
+
             }
           } catch (e) {
-            await nextFetch(url, { method: 'DELETE' });
+            await nextFetch(location, { method: 'DELETE' });
             throw e;
           }
           return ret;
@@ -150,10 +160,10 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
         const parentUrl = new URL(requestUrl.pathname.endsWith('/') ? '..' : '.', requestUrl);
         const pstat = rstatOrNull(parentUrl);
         await throwIfNotFound(pstat, requestUrl, options.method);
-        const postedContainer = NoShapeTrees
+        const parentContainer = NoShapeTrees
               ? await new ShapeTree.Container(parentUrl).ready
               : await ShapeTree.loadContainer(parentUrl);
-        if (!(postedContainer instanceof ShapeTree.ManagedContainer))
+        if (!(parentContainer instanceof ShapeTree.ManagedContainer))
           return nextFetch(url, options);
 
         const ldpType = requestUrl.pathname.endsWith('/') ? 'Container' : 'Resource';
@@ -166,7 +176,7 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
           const payload = options.body.toString('utf8');
           const mediaType = options.headers['content-type'];
           const [payloadGraph, dirMaker] =
-                await postedContainer.validatePayload(payload, location, mediaType, ldpType, entityUrl);
+                await parentContainer.validatePayload(payload, location, mediaType, ldpType, entityUrl);
           const ret = await nextFetch(url, options);
           if (ldpType === 'Container')
             // If it's a Container, instantiate nested Containers
@@ -174,6 +184,11 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
 
           return ret;
         }
+        break;
+      }
+
+      case 'PATCH': {
+        return nextFetch(url, options);
       }
 
       case 'DELETE': {
@@ -202,31 +217,6 @@ function makeShapeTreeFetch (storage, rdfInterface, nextFetch, baseUrl, ldpConf)
     }
   }
 
-/** Create (plant) a ShapeTree instance.
- */
-async function plantShapeTreeInstance (shapeTreeUrl, postedContainer, location) {
-  Log('plant', shapeTreeUrl.href)
-
-  // Ask ecosystem if we can re-use an old ShapeTree instance.
-  const reusedLocation = Ecosystem.reuseShapeTree(postedContainer, shapeTreeUrl);
-  if (reusedLocation) {
-    location = reusedLocation;
-    Log('plant reusing', location.pathname.substr(1));
-  } else {
-    Log('plant creating', location.pathname.substr(1));
-
-    // Populate a ShapeTree object.
-    const shapeTree = new ShapeTree.RemoteShapeTree(shapeTreeUrl);
-    await shapeTree.fetch();
-
-    // Create and register ShapeTree instance.
-    await shapeTree.instantiateStatic(shapeTree.getRdfRoot(), location, '.', postedContainer);
-    Ecosystem.indexInstalledShapeTree(postedContainer, location, shapeTreeUrl);
-    await postedContainer.write();
-  }
-  return location;
-}
-
 /* !! redundant against test-suite/servers/LDP.js
  */
 function throwIfNotFound (rstat, url, method) {
@@ -244,25 +234,6 @@ async function rstatOrNull (url) {
     return await storage.rstat(url);
   } catch (e) {
     return null;
-  }
-}
-
-async function firstAvailableFile (parentUrl, slug, type) {
-  const base = slug || type; // e.g. Container-3 if no slug
-  const optSlash = type === 'Container' ? '/' : '';
-  let unique = 0;
-  let tested;
-  while (await incrementAndTest())
-    ++unique;
-  return tested;
-
-  async function incrementAndTest () {
-    const nth = unique > 0 // e.g. -3
-          ? '-' + unique
-          : '';
-    tested = base + nth + optSlash; // e.g. mySlug-3/
-    const testUrl = new URL(tested, parentUrl);
-    return storage.rstat(testUrl).then(stat => true, e => false);
   }
 }
 
@@ -350,7 +321,7 @@ module.exports = makeShapeTreeFetch;
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Wed Jun 10 2020 19:39:09 GMT+0200 (Central European Summer Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Mon Aug 03 2020 09:19:57 GMT+0200 (Central European Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>

@@ -109,8 +109,8 @@ class SimpleApps {
    * @param {URL} shapeTreeUrl
    */
   indexInstalledShapeTree (parent, instanceUrl, shapeTreeUrl) {
-    parent.graph.addQuad(namedNode(instanceUrl.href), namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
-    parent.prefixes['tree'] = Prefixes.ns_tree;
+    parent.graph.addQuad(namedNode(instanceUrl.href), namedNode(Prefixes.tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
+    parent.prefixes['tree'] = Prefixes.tree;
   }
 
   /** unindexInstalledShapeTree - remove assertion that instanceUrl is an instance of shapeTreeUrl
@@ -119,7 +119,7 @@ class SimpleApps {
    * @param {URL} shapeTreeUrl
    */
   unindexInstalledShapeTree (parent, instanceUrl, shapeTreeUrl) {
-    parent.graph.removeQuad(namedNode(instanceUrl.href), namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
+    parent.graph.removeQuad(namedNode(instanceUrl.href), namedNode(Prefixes.tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
   }
 
   /** reuseShapeTree - look in an LDPC for instances of a footprint
@@ -127,7 +127,7 @@ class SimpleApps {
    * @param {ShapeTree.RemoteShapeTree} shapeTreeUrl
    */
   reuseShapeTree (parent, shapeTreeUrl) {
-    const q = this._rdfInterface.zeroOrOne(parent.graph, null, namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
+    const q = this._rdfInterface.zeroOrOne(parent.graph, null, namedNode(Prefixes.tree + 'shapeTreeRoot'), namedNode(shapeTreeUrl.href));
     return q ? new URL(q.subject.value) : null;
   }
 
@@ -154,10 +154,10 @@ class SimpleApps {
     funcDetails('apps.write');
     await apps.write();
     const prefixes = {
-      ldp: Prefixes.ns_ldp,
-      tree: Prefixes.ns_tree,
-      xsd: Prefixes.ns_xsd,
-      dcterms: Prefixes.ns_dc,
+      ldp: Prefixes.ldp,
+      tree: Prefixes.tree,
+      xsd: Prefixes.xsd,
+      dcterms: Prefixes.dc,
     }
     const appFileText = Object.entries(prefixes).map(p => `PREFIX ${p[0]}: <${p[1]}>`).join('\n') + `
 <> tree:installedIn
@@ -179,8 +179,8 @@ class SimpleApps {
    * @param graph: RDFJS Store
    */
   parseInstatiationPayload (graph) {
-    const planted = this._rdfInterface.one(graph, null, namedNode(Prefixes.ns_ldp + 'app'), null).object;
-    const name = this._rdfInterface.one(graph, planted, namedNode(Prefixes.ns_ldp + 'name'), null).object;
+    const planted = this._rdfInterface.one(graph, null, namedNode(Prefixes.ldp + 'app'), null).object;
+    const name = this._rdfInterface.one(graph, planted, namedNode(Prefixes.ldp + 'name'), null).object;
     return {
       planted: planted.value,
       name: name.value

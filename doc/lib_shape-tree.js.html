@@ -43,6 +43,7 @@ const Log = Debug('				shape-tree');
 const Details = Log.extend('details');
 
 const Path = require('path');
+const Relateurl = require('relateurl');
 const N3 = require("n3");
 const { namedNode, literal, defaultGraph, quad } = N3.DataFactory;
 const Errors = require('./rdf-errors');
@@ -50,6 +51,7 @@ const Mutex = require('./mutex');
 const Prefixes = require('./prefixes');
 const UriTemplate = require('uri-template-lite').URI.Template;
 const ShExCore = require('@shexjs/core')
+const ShExPath = require('../../../../shexSpec/shex.js/packages/shex-path')
 const ShExParser = require('@shexjs/parser')
 
 /** Container - an LDPC
@@ -92,11 +94,11 @@ class Container {
 
   setTitle (title) {
     this.graph.getQuads(
-      namedNode(this.url.href), namedNode(Prefixes.ns_dc + 'title'), null
+      namedNode(this.url.href), namedNode(Prefixes.dc + 'title'), null
     ).map(
       q => this.graph.removeQuad(q)
     );
-    this.graph.addQuad(namedNode(this.url.href), namedNode(Prefixes.ns_dc + 'title'),
+    this.graph.addQuad(namedNode(this.url.href), namedNode(Prefixes.dc + 'title'),
                        literal(title));
   }
 
@@ -186,12 +188,12 @@ class Container {
   }
 
   addMember (location, shapeTreeUrl) {
-    this.graph.addQuad(namedNode(this.url.href), namedNode(Prefixes.ns_ldp + 'contains'), namedNode(location));
+    this.graph.addQuad(namedNode(this.url.href), namedNode(Prefixes.ldp + 'contains'), namedNode(location));
     return this
   }
 
   removeMember (location, shapeTreeUrl) {
-    this.graph.removeQuad(namedNode(this.url.href), namedNode(Prefixes.ns_ldp + 'contains'), namedNode(location));
+    this.graph.removeQuad(namedNode(this.url.href), namedNode(Prefixes.ldp + 'contains'), namedNode(location));
     return this
   }
 
@@ -200,9 +202,9 @@ class Container {
     return this
   }
 
-  async plantShapeTreeInstance (shapeTreeUrl, requestedName, payloadGraph) {
+  async plantShapeTreeInstance (shapeTreeUrl, requestedName) {
     Log('plant', shapeTreeUrl.href)
-    const funcDetails = Details.extend(`plantShapeTreeInstance(&lt;${shapeTreeUrl.href}>), Container(&lt;${this.url.pathname}>), "${requestedName}", n3.Store() with ${payloadGraph.size} quads)`);
+    const funcDetails = Details.extend(`plantShapeTreeInstance(&lt;${shapeTreeUrl.href}>), Container(&lt;${this.url.pathname}>), "${requestedName}")`);
     funcDetails('');
     let location;
 
@@ -216,7 +218,7 @@ class Container {
       funcDetails('this(&lt;%s>).nestContainer(&lt;%s>, "%s")', this.url.pathname, requestedName, appContainerTitle)
       const tmp = await (await this.nestContainer(requestedName, appContainerTitle));
       funcDetails(`Container(${tmp.url.pathname}).asManagedContainer(${shapeTreeUrl.pathname}, '.')`)
-      const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.'); // don't move asMC to RemoteShapeTree.instantiateStatic()
+      const newContainer = await tmp.asManagedContainer(shapeTreeUrl, '.', tmp.url); // don't move asMC to RemoteShapeTree.instantiateStatic()
       funcDetails('setTitle()');
       newContainer.setTitle(`root of Container for ${shapeTree.url}`);
       await newContainer.write();
@@ -234,24 +236,43 @@ class Container {
    * @param shapeTreeUrl: the URL of the ShapeTree that defines this instance.
    * @param shapeTreeInstancePath: the path from the root of this ShapeTree instance.
    */
-  async asManagedContainer (shapeTreeUrl, shapeTreeInstancePath) {
+  async asManagedContainer (shapeTreeUrl, shapeTreeInstancePath, validationRoot) {
+    const mdGraph = await mergeTreeMetadata(this.url, shapeTreeUrl, shapeTreeInstancePath, validationRoot, this.prefixes);
+    return this instanceof ManagedContainer
+      ? this
+      : await new ManagedContainer(this.url, [this.graph, this.prefixes, mdGraph]).ready;
+  }
+}
+
+  async function mergeTreeMetadata (describedUrl, shapeTreeUrl, shapeTreeInstancePath, validationRoot, prefixes) {
+    const mdUrl = new URL(await storage.getMetaDataFilePath(describedUrl), describedUrl);
+    const fromMd = Relateurl.relate(mdUrl.href, describedUrl.href);
+    const mdGraph = await storage.readMetaData(describedUrl, {});
+    const instanceRootRel = shapeTreeInstancePath.substr(0, shapeTreeInstancePath.lastIndexOf('/'));
+    // const validationRootRel = Relateurl.relate(mdUrl.href, validationRoot.href);
+    const validationRootStr = validationRoot === null ? '' : ` ;
+   tree:validationRoot &lt;${validationRoot.href}>`
+    const mdNode = namedNode(mdUrl.href);
+    (['shapeTreeRoot', 'shapeTreeInstancePath', 'shapeTreeInstanceRoot'])
+      .forEach(
+        ln =>
+          mdGraph.removeQuads(mdGraph.getQuads(mdNode, namedNode(Prefixes.tree + ln), null))
+      )
     const c = `
 @prefix dcterms: &lt;http://purl.org/dc/terms/>.
 @prefix ldp: &lt;http://www.w3.org/ns/ldp#>.
-@prefix tree: &lt;${Prefixes.ns_tree}>.
+@prefix tree: &lt;${Prefixes.tree}>.
 
-&lt;>
+&lt;${fromMd}>
    tree:shapeTreeRoot &lt;${shapeTreeUrl.href}> ;
    tree:shapeTreeInstancePath "${shapeTreeInstancePath}" ;
-   tree:shapeTreeInstanceRoot &lt;${Path.relative(shapeTreeInstancePath, '')}> .
+   tree:shapeTreeInstanceRoot &lt;${instanceRootRel ? Path.relative(instanceRootRel, '') : '.'}>${validationRootStr} .
 `;
-    const s = await rdfInterface.parseTurtle(c, this.url, this.prefixes);
-    this.graph.addQuads(s.getQuads());
-    return this instanceof ManagedContainer
-      ? this
-      : await new ManagedContainer(this.url, [this.graph, this.prefixes]).ready;
+    const s = await rdfInterface.parseTurtle(c, describedUrl, prefixes);
+    mdGraph.addQuads(s.getQuads());
+    storage.writeMetaData(describedUrl, mdGraph, {tree: Prefixes.tree});
+    return mdGraph;
   }
-}
 
 /** ManagedContainer - an LDPC with shapeTrees
  * @param url: URL of Container
@@ -266,7 +287,7 @@ class ManagedContainer extends Container {
     const funcDetails = this._classDetails.extend('new');
     funcDetails('');
     if (title instanceof Array) {
-      parseShapeTreeInstance.call(this);
+      parseShapeTreeInstance.call(this, title[2]); // the metadata graph
     } else {
       if (!(shapeTreeUrl instanceof URL))
         throw Error(`shapeTreeUrl ${shapeTreeUrl} must be an instance of URL`);
@@ -281,11 +302,11 @@ class ManagedContainer extends Container {
       const unlock = await this._mutex.lock();
       if (this.newDir) {
         funcDetails(`this.asManagedContainer(&lt;${shapeTreeUrl.href}>, "${shapeTreeInstancePath}")`);
-        await this.asManagedContainer(shapeTreeUrl, shapeTreeInstancePath);
+        await this.asManagedContainer(shapeTreeUrl, shapeTreeInstancePath, this.url);
         funcDetails('storage.writeContainer(&lt;%s>, n3.Store() with %d quads, %s)', this.url.pathname, this.graph.size, JSON.stringify(this.prefixes));
         await storage.writeContainer(this.url, this.graph, this.prefixes);
       } else {
-        parseShapeTreeInstance.call(this);
+        parseShapeTreeInstance.call(this, await storage.readMetaData(new URL(await storage.getMetaDataFilePath(this.url), this.url), {}));
       }
       unlock();
       return /*this*/ new Promise((res, rej) => { // !!DELME sleep for a bit to surface bugs
@@ -295,18 +316,26 @@ class ManagedContainer extends Container {
       });
     }
 
-    function parseShapeTreeInstance () {
-      this.shapeTreeInstanceRoot = asUrl(this.graph, this.url, 'shapeTreeInstanceRoot');
-      this.shapeTreeInstancePath = asLiteral(this.graph, this.url, 'shapeTreeInstancePath');
-      this.shapeTreeUrl = asUrl(this.graph, this.url, 'shapeTreeRoot');
+    function parseShapeTreeInstance (metaDataGraph) {
+      this.shapeTreeInstanceRoot = asUrl(metaDataGraph, this.url, 'shapeTreeInstanceRoot');
+      this.shapeTreeInstancePath = asLiteral(metaDataGraph, this.url, 'shapeTreeInstancePath');
+      this.shapeTreeUrl = asUrl(metaDataGraph, this.url, 'shapeTreeRoot');
     }
+  }
+
+  async nest (slug, payload, mediaType, step, validationRootRel) {
+    const url = await super.nest(slug, payload, mediaType);
+    const added = url.href.substr(this.url.href.length);
+    const shapeTree = await this.getRootedShapeTree();
+    await mergeTreeMetadata(url, new URL(step.node.value), pathAppend(this.shapeTreeInstancePath, added), validationRootRel === null ? null : new URL(validationRootRel, url), {});
+    return url;
   }
 
   /** virtual nestContainer:Container - add a Container in this Container
    * @param url:URL - URL of new Container
    * @returns created Container object
    */
-  async nestContainer (slug, title) {
+  async nestContainer (slug, title, validationRootRel) {
     const prefixes = {};
     const containerTitle = `managed Container in ${this.url.pathname}`;
     const funcDetails = this._classDetails.extend(`nestContainer("${slug}", "${title}")`);
@@ -315,8 +344,9 @@ class ManagedContainer extends Container {
     console.assert(name.match(/^[^/]+\/$/));
     const url = new URL(name, this.url);
     const newInstancePath = pathAppend(this.shapeTreeInstancePath, name);
-    funcDetails('new Container(%s, [...]).asManagedContainer(&lt;%s>, "%s")', this.shapeTreeUrl.href, newInstancePath);
-    const ret = await new Container(url, [graph, prefixes]).asManagedContainer(this.shapeTreeUrl, newInstancePath); // kinda inefficient
+    const validationRoot = new URL(validationRootRel, url)
+    funcDetails('new Container(%s, [...]).asManagedContainer(&lt;%s>, "%s", "%s")', this.shapeTreeUrl.href, newInstancePath, validationRoot.href);
+    const ret = await new Container(url, [graph, prefixes]).asManagedContainer(this.shapeTreeUrl, newInstancePath, validationRoot); // kinda inefficient
     ret.setTitle(`nested Container for ${newInstancePath} in &lt;${this.shapeTreeUrl}>`);
     // console.warn(215, ret.graph.getQuads().map(q => '\n' + (['subject', 'predicate', 'object']).map(pos => q[pos].value).join(' ')).join(''))
     await ret.write();
@@ -324,8 +354,11 @@ class ManagedContainer extends Container {
   }
 
   async getRootedShapeTree () {
-    const path = rdfInterface.one(this.graph, namedNode(this.url.href), namedNode(Prefixes.ns_tree + 'shapeTreeInstancePath'), null).object.value;
-    const root = rdfInterface.one(this.graph, namedNode(this.url.href), namedNode(Prefixes.ns_tree + 'shapeTreeRoot'), null).object.value;
+    const mdUrl = new URL(await storage.getMetaDataFilePath(this.url), this.url);
+    const fromMd = Relateurl.relate(mdUrl.href, this.url.href);
+    const mdGraph = await storage.readMetaData(this.url);
+    const path = rdfInterface.one(mdGraph, namedNode(this.url.href), namedNode(Prefixes.tree + 'shapeTreeInstancePath'), null).object.value;
+    const root = rdfInterface.one(mdGraph, namedNode(this.url.href), namedNode(Prefixes.tree + 'shapeTreeRoot'), null).object.value;
     return new RemoteShapeTree(new URL(root), path)
   }
 
@@ -350,20 +383,20 @@ class ManagedContainer extends Container {
     const pathWithinShapeTree = pathAppend(shapeTree.path, resourceName);
     const step = shapeTree.matchingStep(shapeTree.getRdfRoot(), resourceName);
     console.assert(!step.name); // can't post to static resources.
-    Log.extend('ManagedContainer')('validate %s payload (%d bytes) with %s', mediaType, payload.length, step.uriTemplate.value);
+    Log.extend('ManagedContainer')('validate %s payload (%d bytes) with %s', mediaType, payload.length, step.matchesUriTemplate.value);
 
     // Validate the payload
     if (ldpType !== step.type)
       throw new Errors.ManagedError(`Resource POSTed with link type=${ldpType} while ${step.node.value} expects a ${step.type}`, 422);
     if (ldpType == 'NonRDFSource') {
-      // if (step.shape)
-      //   throw new Errors.ShapeTreeStructureError(this.url, `POST of NonRDFSource to ${rdfInterface.renderRdfTerm(step.node)} which has a tree:shape property`);
+      // if (step.validatedBy)
+      //   throw new Errors.ShapeTreeStructureError(this.url, `POST of NonRDFSource to ${rdfInterface.renderRdfTerm(step.node)} which has a tree:validatedBy property`);
     } else {
-      if (!step.shape)
-        // @@issue: is a step allowed to not have a shape?
-        throw new Errors.ShapeTreeStructureError(this.url, `${rdfInterface.renderRdfTerm(step.node)} has no tree:shape property`);
+      if (!step.validatedBy)
+        // @@issue: is a step allowed to not have a validatedBy?
+        throw new Errors.ShapeTreeStructureError(this.url, `${rdfInterface.renderRdfTerm(step.node)} has no tree:validatedBy property`);
       payloadGraph = await rdfInterface.parseRdf(payload, location, mediaType, prefixes);
-      await shapeTree.validate(step.shape.value, payloadGraph, entityUrl.href);
+      await shapeTree.validate(step.validatedBy.value, payloadGraph, entityUrl.href);
     }
 
     // Return a lambda for creating a containers mandated by the ShapeTree.
@@ -371,7 +404,7 @@ class ManagedContainer extends Container {
       const dir = await shapeTree.instantiateStatic(step.node, location, pathWithinShapeTree, _ManagedContainer, serversNewContainer)
       Object.assign(dir.prefixes, prefixes, dir.prefixes); // inject the parsed prefixes
       return dir;
-    }];
+    }, step];
   }
 }
 
@@ -384,12 +417,12 @@ function pathAppend () {
 }
 
 function asUrl (g, s, p) {
-  const ret = rdfInterface.zeroOrOne(g, namedNode(s.href), namedNode(Prefixes.ns_tree + p), null);
+  const ret = rdfInterface.zeroOrOne(g, namedNode(s.href), namedNode(Prefixes.tree + p), null);
   return ret ? new URL(ret.object.value) : null;
 }
 
 function asLiteral (g, s, p) {
-  const ret = rdfInterface.zeroOrOne(g, namedNode(s.href), namedNode(Prefixes.ns_tree + p), null);
+  const ret = rdfInterface.zeroOrOne(g, namedNode(s.href), namedNode(Prefixes.tree + p), null);
   return ret ? ret.object.value : null;
 }
 
@@ -399,8 +432,11 @@ function asLiteral (g, s, p) {
 async function loadContainer (url) {
   const prefixes = {};
   const containerGraph = await storage.readContainer(url, prefixes);
-  return asUrl(containerGraph, url, 'shapeTreeInstanceRoot')
-    ? new ManagedContainer(url, [containerGraph, prefixes])
+  const mdUrl = new URL(await storage.getMetaDataFilePath(url), url);
+  const fromMd = Relateurl.relate(mdUrl.href, url.href);
+  const mdGraph = await storage.readMetaData(url, prefixes);
+  return asUrl(mdGraph, url, 'shapeTreeInstanceRoot')
+    ? new ManagedContainer(url, [containerGraph, prefixes, mdGraph])
     : new Container(url, [containerGraph, prefixes]);
 }
 
@@ -441,25 +477,25 @@ class RemoteResource {
  * @param path: refer to a specific node in the ShapeTree hierarchy
  *
  * A ShapeTree has contents:
- *     [] a rdf:ShapeTreeRoot, ldp:BasicContainer ; tree:contents
+ *     [] a rdf:ShapeTreeRoot, ldp:BasicContainer ; tree:contains
  *
  * The contents may be ldp:Resources:
  *         [ a ldp:Resource ;
- *           tree:uriTemplate "{labelName}.ttl" ;
- *           tree:shape gh:LabelShape ] ],
+ *           tree:matchesUriTemplate "{labelName}.ttl" ;
+ *           tree:validatedBy gh:LabelShape ] ],
  * or ldp:Containers, which may either have
  * n nested static directories:
  *         [ a ldp:BasicContainer ;
  *           rdfs:label "repos" ;
- *           tree:contents ... ] ,
+ *           tree:contains ... ] ,
  *         [ a ldp:BasicContainer ;
  *           rdfs:label "users" ;
- *           tree:contents ... ]
+ *           tree:contains ... ]
  * or one dynamically-named member:
  *         [ a ldp:BasicContainer ;
- *           tree:uriTemplate "{userName}" ;
- *           tree:shape gh:UserShape ;
- *           tree:contents ]
+ *           tree:matchesUriTemplate "{userName}" ;
+ *           tree:validatedBy gh:UserShape ;
+ *           tree:contains ]
  */
 class RemoteShapeTree extends RemoteResource {
   constructor (url, path = '.') {
@@ -469,6 +505,145 @@ class RemoteShapeTree extends RemoteResource {
     this.path = path
   }
 
+  static async get (url) {
+    const docString = noHash(url).href
+    if (RemoteShapeTree.cache &amp;&amp; docString in RemoteShapeTree.cache)
+      return RemoteShapeTree.cache[docString]
+    const ret = await new RemoteShapeTree(url).fetch()
+    if (RemoteShapeTree.cache)
+      RemoteShapeTree.cache[docString] = ret
+    return ret
+  }
+
+  async fetch () {
+    await super.fetch()
+    this.ids = {} // @id index for entire ShapeTree
+    this.tree = await this.parse() // add '@id', 'expectsType', 'contains', 'validatedBy' properties
+    return this
+  }
+
+  async parse () {
+    const _RemoteShapeTree = this
+    const contains = namedNode(Prefixes.tree + 'contains')
+    const containedInMap = {}
+    const root = this.graph.getQuads(null, contains, null).find(
+      q => this.graph.getQuads(null, contains, q.subject).length === 0
+    ).subject;
+
+    const str = sz => one(sz).value
+    const url = sz => new URL(one(sz).value)
+    const lst = sz => sz.map(s => new URL(s.value))
+    const cnt = (sz, g, p) => {
+      const ret = visitNode(_RemoteShapeTree.graph, stepRules, sz, 'id')
+      return ret.map(r => {
+        const child = r.id
+        containedInMap[child.href] = new URL(p.value)
+        return child
+      })
+    }
+    const ref = sz => visitNode(_RemoteShapeTree.graph, referenceRules, sz, null)
+    const one = sz => sz.length === 1
+          ? sz[0]
+          : (() => {throw new Errors.ShapeTreeStructureError(this.url, `Expected one object, got [${sz.map(s => s.value).join(', ')}]`)})()
+    const referenceRules = [
+      { predicate: Prefixes.tree + 'treeStep'    , attr: 'treeStep'    , f: url },
+      { predicate: Prefixes.tree + 'shapePath'   , attr: 'shapePath'   , f: str },
+    ]
+    const stepRules = [
+      { predicate: Prefixes.rdfs + 'label'       , attr: 'name'        , f: str },
+
+      // predicates with a domain of tree:ShapeTree :
+      { predicate: Prefixes.tree + 'expectsType' , attr: 'expectsType' , f: url },
+      { predicate: Prefixes.tree + 'matchesUriTemplate' , attr: 'matchesUriTemplate' , f: str },
+      { predicate: Prefixes.tree + 'validatedBy' , attr: 'validatedBy' , f: url },
+      { predicate: Prefixes.tree + 'supports'    , attr: 'supports'    , f: lst },
+      { predicate: Prefixes.tree + 'contains'    , attr: 'contains'    , f: cnt },
+      { predicate: Prefixes.tree + 'references'  , attr: 'references'  , f: ref },
+    ]
+
+    // Look for subjects with any predicate with a domain of tree:ShapeTree.
+    // @@ISSUE: What are the recognition rules for ShapeTree steps?
+    const subjects = stepRules.slice(1).reduce(
+      (outer, rule) =>
+        _RemoteShapeTree.graph.getQuads(null, namedNode(rule.predicate), null).reduce((inner, q) => {
+          const key = q.subject.value
+          if (!(key in inner))
+            inner[key] = q.subject
+          return inner
+        }, outer)
+      , {})
+
+    // Parse each of those subjects against stepRules
+    for (const s in subjects) {
+      // try {
+        const step = visitNode(_RemoteShapeTree.graph, stepRules, [subjects[s]], '@id')[0]
+        if (Object.keys(step).length > 1)
+          _RemoteShapeTree.ids[step['@id'].href] = step
+      // } catch (e) {
+      //   console.warn('WHY:', e); // non-ShapeTree node in the ShapeTree graph. I guess that's OK.
+      // }
+    }
+
+    // Add parent links to any contained steps *in this document*.
+    for (const child in containedInMap)
+      // @@issue: should parse have automatically loaded out-of-doc comtains?
+      // if (!(child in _RemoteShapeTree.ids))
+      // e.g. if deep analog to &lt;gh-flat-ShapeTree-split-org#org> contained &lt;gh-deep-ShapeTree-split-issues#issues>
+      _RemoteShapeTree.ids[child].containedIn = containedInMap[child]
+
+    // A decorator index arc will come from the document URL.
+    const decIdxPredicate = namedNode(Prefixes.tree + 'hasShapeTreeDecoratorIndex')
+    const indexes =
+          this.graph.getQuads(namedNode(noHash(this.url).href), decIdxPredicate, null)
+          .map(q => new URL(q.object.value))
+    if (indexes.length > 0)
+      _RemoteShapeTree.hasShapeTreeDecoratorIndex = indexes
+    return _RemoteShapeTree.ids[root.value]
+
+    function visitNode (graph, rules, subjects, includeId) {
+      return subjects.map(s => {
+        // Index by predicate.
+        const byPredicate = graph.getQuads(s, null, null).reduce((acc, q) => {
+          const p = q.predicate.value
+          if (!(p in acc))
+            acc[p] = []
+          acc[p].push(q.object)
+          return acc
+        }, {})
+
+        // Construct return object.
+        const ret = {}
+        if (includeId)
+          ret[includeId] = new URL(s.value)
+
+        // Recursively apply rules to populate ret.
+        return rules.reduce((acc, rule) => {
+          const p = rule.predicate
+          if (p in byPredicate)
+            acc[rule.attr] = rule.f(byPredicate[p], graph, s)
+          return acc
+        }, ret)
+      })
+    }
+
+    // handy function, not currently used
+    function shorten999 (urlStr) {
+      for (const prefix in Prefixes) {
+        const ns = Prefixes[prefix]
+        if (urlStr.startsWith(ns)) {
+          const localname = urlStr.substr(ns.length)
+          if (localname.match(/^[a-zA-Z]+$/))
+            return prefix === ''
+            ? localname
+            : prefix + ':' + localname
+        }
+      }
+      if (new URL(_RemoteShapeTree.url.href).host === new URL(urlStr).host) // https://github.com/stevenvachon/relateurl/issues/28
+        return Relateurl.relate(_RemoteShapeTree.url.href, urlStr, { output: Relateurl.ROOT_PATH_RELATIVE })
+      return urlStr
+    }
+  }
+
   /** getRdfRoot - Walk through the path elements to find the target node.
    */
   getRdfRoot () {
@@ -476,61 +651,61 @@ class RemoteShapeTree extends RemoteResource {
       if (name === '.' || name === '')
         return node;
       // Get the contents of the node being examined
-      const cqz = this.graph.getQuads(node, namedNode(Prefixes.ns_tree + 'contents'), null);
+      const cqz = this.graph.getQuads(node, namedNode(Prefixes.tree + 'contains'), null);
       // Find the element which either
       return cqz.find(
         q =>
           // matches the current label in the path
-        this.graph.getQuads(q.object, namedNode(Prefixes.ns_rdfs + 'label'), literal(name)).length === 1
+        this.graph.getQuads(q.object, namedNode(Prefixes.rdfs + 'label'), literal(name)).length === 1
           ||
-          // or has a uriTemplate (so it should be the sole element in the contents)
-        this.graph.getQuads(q.object, namedNode(Prefixes.ns_tree + 'uriTemplate'), null).length === 1
+          // or has a matchesUriTemplate (so it should be the sole element in the contents)
+        this.graph.getQuads(q.object, namedNode(Prefixes.tree + 'matchesUriTemplate'), null).length === 1
       ).object
     }, namedNode(this.url.href));
   }
 
   /** firstChild - return the first contents.
-   * @returns: { type, name, uriTemplate, shape, contents }
+   * @returns: { type, name, matchesUriTemplate, validatedBy, contains }
    */
   matchingStep (shapeTreeNode, slug) {
-    const contents = this.graph.getQuads(shapeTreeNode, namedNode(Prefixes.ns_tree + 'contents'))
+    const contains = this.graph.getQuads(shapeTreeNode, namedNode(Prefixes.tree + 'contains'))
           .map(q => q.object);
-    const choices = contents
+    const choices = contains
           .filter(
             step => !slug ||
               new UriTemplate(
-                this.graph.getQuads(step, namedNode(Prefixes.ns_tree + 'uriTemplate'))
+                this.graph.getQuads(step, namedNode(Prefixes.tree + 'matchesUriTemplate'))
                   .map(q2 => q2.object.value)[0]
               ).match(slug)
           );
     if (choices.length === 0)
-      throw new Errors.UriTemplateMatchError(slug, [], `No match in ${shapeTreeNode.value} ${contents.map(t => t.value).join(', ')}`);
+      throw new Errors.UriTemplateMatchError(slug, [], `No match in ${shapeTreeNode.value} ${contains.map(t => t.value).join(', ')}`);
     /* istanbul ignore if */
     if (choices.length > 1) // @@ Could have been caught by static analysis of ShapeTree.
-      throw new Errors.UriTemplateMatchError(slug, [], `Ambiguous match against ${contents.map(t => t.value).join(', ')}`);
+      throw new Errors.UriTemplateMatchError(slug, [], `Ambiguous match against ${contains.map(t => t.value).join(', ')}`);
     const g = this.graph;
-    const typeNode = obj('expectedType')
+    const typeNode = obj('expectsType')
     const ret = {
       node: choices[0],
       typeNode: typeNode,
       name: obj('name'),
-      uriTemplate: obj('uriTemplate'),
-      shape: obj('shape'),
-      contents: this.graph.getQuads(choices[0], Prefixes.ns_tree + 'contents', null).map(t => t.object)
+      matchesUriTemplate: obj('matchesUriTemplate'),
+      validatedBy: obj('validatedBy'),
+      contains: this.graph.getQuads(choices[0], Prefixes.tree + 'contains', null).map(t => t.object)
     };
     /* istanbul ignore else */ if (typeNode)
-      ret.type = typeNode.value.replace(Prefixes.ns_ldp, '');
+      ret.type = typeNode.value.replace(Prefixes.ldp, '');
     return ret;
 
     function obj (property) {
-      const q = rdfInterface.zeroOrOne(g, choices[0], namedNode(Prefixes.ns_tree + property), null);
+      const q = rdfInterface.zeroOrOne(g, choices[0], namedNode(Prefixes.tree + property), null);
       return q ? q.object : null;
     }
   }
 
 
   /** instantiateStatic - make all containers implied by the ShapeTree.
-   * @param {RDFJS:node} stepNode - subject of ldp:contents arcs of the LDP-Cs to be created.
+   * @param {RDFJS:node} stepNode - subject of ldp:contains arcs of the LDP-Cs to be created.
    * @param {URL} rootUrl - root of the resource hierarchy (path === '/') @@ change to ManagedContainer?
    * @param {string} pathWithinShapeTree. e.g. "repos/someOrg/someRepo"
    * @param {Container} parent - Container object for parent to be updated with new member
@@ -556,9 +731,9 @@ class RemoteShapeTree extends RemoteResource {
     }
 
     try {
-      const contents = this.graph.getQuads(stepNode, Prefixes.ns_tree + 'contents', null).map(q => q.object);
-      const subdirPromises = contents.reduce((acc, nested) => {
-        const labelQ = rdfInterface.zeroOrOne(this.graph, nested, namedNode(Prefixes.ns_rdfs + 'label'), null);
+      const contains = this.graph.getQuads(stepNode, Prefixes.tree + 'contains', null).map(q => q.object);
+      const subdirPromises = contains.reduce((acc, nested) => {
+        const labelQ = rdfInterface.zeroOrOne(this.graph, nested, namedNode(Prefixes.rdfs + 'label'), null);
         if (!labelQ)
           return acc; // not a static subdir of the stepNode
         const toAdd = labelQ.object.value;
@@ -587,8 +762,7 @@ class RemoteShapeTree extends RemoteResource {
 
   async validate (shape, payloadGraph, node) {
     // shape is a URL with a fragement. shapeBase is that URL without the fragment.
-    const shapeBase = new URL(shape);
-    shapeBase.hash = '';
+    const shapeBase = noHash(new URL(shape));
     let schemaResp = await Errors.getOrThrow(cachingFetch, shapeBase); // throws if unresolvable
     // const schemaType = schemaResp.headers.get('content-type').split(/; */)[0];
     const schemaPrefixes = {};
@@ -610,18 +784,188 @@ class RemoteShapeTree extends RemoteResource {
       throw new Errors.ValidationError(node, shape, ShExCore.Util.errsToSimple(res).join('\n'));
     }
   }
-}
 
+  /**
+   * recursively get the list of referenced ShapeTree steps
+   * @TODO:
+   *   use generator?
+   *   make efficient (capture and proxy nested iterators in .next())
+   *   add referrers stack a la: { referrers: [&lt;#org>, &lt;#repo>, &lt;#issue>, &lt;#comment>] }
+   * @returns {Iterable}
+   */
+  async *walkReferencedTrees (control = RemoteShapeTree.DEFAULT, via = []) {if (control instanceof URL) console.warn(Error(`HERE`).stack)
+    const _RemoteShapeTree = this
+    yield* walkLocalTree(this.url, control, via)
+
+    // Iterate over this ShapeTree.
+    async function *walkLocalTree (from, control, via = []) {
+      if (!(from.href in _RemoteShapeTree.ids))
+        throw new Errors.ShapeTreeStructureError(from, `not found in [${Object.keys(_RemoteShapeTree.ids)}]`);
+      const step = _RemoteShapeTree.ids[from.href]
+
+      // Queue contents and references.
+      if ('contains' in step)
+        for (const i in step.contains) {
+          const r = step.contains[i]
+
+          // Steps have URLs so reference by id.
+          const result = {type: 'contains', target: r}
+          if (control &amp; RemoteShapeTree.REPORT_CONTAINS) // Only report references (for now).
+            control = defaultControl(yield { result, via }, control)
+
+          if (control &amp; RemoteShapeTree.RECURSE_CONTAINS)
+            yield *visit(r, result)
+        }
+
+      if ('references' in step)
+        for (const i in step.references) {
+          const r = step.references[i]
+
+          // References don't have URLs so so include verbatim.
+          const result = {type: 'reference', target: r}
+          if (control &amp; RemoteShapeTree.REPORT_REERENCES)
+            control = defaultControl(yield { result, via }, control)
+
+          if (control &amp; RemoteShapeTree.RECURSE_REERENCES)
+            yield *visit(r['treeStep'], result)
+        }
+
+      async function *visit (stepName, result) {
+        // Avoid cycles by looking in via for stepName.
+        if (!(via.find(v => (v.type === 'contains'
+                             ? v.target
+                             : v.target.treeStep)
+                       .href === stepName.href)))
+          yield* noHash(stepName).href === noHash(_RemoteShapeTree.url).href
+
+            // (optimization) In-tree links can recursively call this generator.
+            ? walkLocalTree(stepName, control, via.concat(result))
+
+            // (general case) Parse a new RemoteShapeTree.
+            : (await RemoteShapeTree.get(stepName))
+          .walkReferencedTrees(control, via.concat(result))
+      }
+    }
+  }
+}
+RemoteShapeTree.REPORT_CONTAINS = 0x1
+RemoteShapeTree.REPORT_REERENCES = 0x2
+RemoteShapeTree.RECURSE_CONTAINS = 0x4
+RemoteShapeTree.RECURSE_REERENCES = 0x8
+RemoteShapeTree.DEFAULT = 0xE
+
+  /**
+   * recursively get the list of resources referenced by instance data corresponding to ShapeTree references.
+   * @TODO:
+   *   use generator?
+   *   make efficient (capture and proxy nested iterators in .next())
+   *   add referrers stack a la: { referrers: [&lt;#org>, &lt;#repo>, &lt;#issue>, &lt;#comment>] }
+   * @returns {Iterable}
+   */
+  async function* walkReferencedResources (focus, control = RemoteShapeTree.DEFAULT, via = []) {
+    // console.warn(focus.href, via)
+    const dataResp = await Errors.getOrThrow(cachingFetch, noHash(focus));
+    const dataPrefixes = {}
+    const dataGraph = await rdfInterface.parseRdf(await dataResp.text(), noHash(focus), 'text/turtle', dataPrefixes);
+
+    const mdPrefixes = {}
+    const focusMetaData = await getMetaData(focus, mdPrefixes)
+    const tree = await (new RemoteShapeTree(focusMetaData.shapeTreeRoot)).fetch()
+    const step = tree.ids[focusMetaData.shapeTreeRoot.href]
+    const validatedBy = step.validatedBy.href
+    const shapeBase = noHash(new URL(validatedBy));
+    let schemaResp = await Errors.getOrThrow(cachingFetch, shapeBase);
+    // const schemaType = schemaResp.headers.get('content-type').split(/; */)[0];
+    const schema = ShExParser.construct(shapeBase.href, {}, {index: true})
+          .parse(await schemaResp.text());
+    const st = await RemoteShapeTree.get(focusMetaData.shapeTreeRoot)
+
+    // Set up a ShEx semantic action to push referees into a queue
+    const pathResolver = new ShExPath(schema, {
+      base: shapeBase.href,
+      prefixes: schema._prefixes
+    })
+    // pick some consistent name. could be random.
+    const FollowName = 'http://shex.io/extensions/Follow/#'
+    const references = st.ids[focusMetaData.shapeTreeRoot.href].references || []
+    const queue = []
+    references.map(ref => {
+      const tes = pathResolver.search(ref.shapePath)
+      tes.map(te => {
+        te.semActs = [
+          {
+            type: 'SemAct',
+            name: FollowName,
+            code: JSON.stringify(ref)
+          }
+        ]
+      })
+      return tes
+    })
+    const v = ShExCore.Validator.construct(schema);
+    v.semActHandler.register(
+      FollowName,
+      {
+        dispatch: function (code, ctx, extensionStorage) {
+          // @@ selection criteria could be set by `control`
+          // if (!(via.find(v => v.resource.href === ctx.object)))
+          queue.push({resource: new URL(ctx.object), reference: JSON.parse(code)})
+        }
+      }
+    )
+
+    Log.extend('ShapeTree')('validate graph (%d triples) with ShapeMap &lt;%s>@&lt;%s>', dataGraph.size, focus.href, validatedBy);
+    let res = v.validate(ShExCore.Util.makeN3DB(dataGraph), focus.href, validatedBy);
+
+    for (const i in queue) {
+      const match = queue[i]
+
+      // References don't have URLs so so include verbatim.
+      const result = {type: 'reference', target: match.reference, resource: match.resource}
+      if (control &amp; RemoteShapeTree.REPORT_REERENCES)
+        control = defaultControl(yield { result, via }, control)
+
+      if (control &amp; RemoteShapeTree.RECURSE_REERENCES)
+        yield* walkReferencedResources(match.resource, control, via.concat(result))
+    }
+  }
+
+  function defaultControl (newValue, oldValue) {
+    return newValue === undefined
+      ? oldValue
+      : newValue
+  }
+
+  async function getMetaData (focus, prefixes) {
+    const g = await storage.readMetaData(focus, prefixes)
+    if (g.size === 0)
+      throw Error(`No metadata for ${focus.href}`)
+    const s = namedNode(noHash(focus).href)
+    return {
+      shapeTreeRoot: new URL(rdfInterface.one(g, s, namedNode(Prefixes.tree + 'shapeTreeRoot'), null).object.value),
+      shapeTreeInstancePath: rdfInterface.one(g, s, namedNode(Prefixes.tree + 'shapeTreeInstancePath'), null).object.value,
+      shapeTreeInstanceRoot: new URL(rdfInterface.one(g, s, namedNode(Prefixes.tree + 'shapeTreeInstanceRoot'), null).object.value),
+      validationFocus: new URL(rdfInterface.one(g, s, namedNode(Prefixes.tree + 'validationRoot'), null).object.value),
+    }
+  }
+
+  function noHash (url) {
+    const u = url.href
+    return new URL(u.substr(0, u.length - url.hash.length))
+  }
 
   const fsHash = storage.hashCode();
   /* istanbul ignore if */if (ShapeTreeFunctions[fsHash])
     return ShapeTreeFunctions[fsHash];
 
   return ShapeTreeFunctions[fsHash] = {
+    RemoteResource,
     RemoteShapeTree,
     Container,
     ManagedContainer,
     loadContainer,
+    mergeTreeMetadata,
+    walkReferencedResources,
   }
 }
 
@@ -642,7 +986,7 @@ module.exports = ShapeTreeFunctions;
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Wed Jun 10 2020 19:39:09 GMT+0200 (Central European Summer Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Mon Aug 03 2020 09:19:57 GMT+0200 (Central European Summer Time)
 </footer>
 
 <script> prettyPrint(); </script>

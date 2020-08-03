@@ -57,7 +57,7 @@ class LdpProxy {
     const links = parseLinks(resp);
     return {
       isContainer: links.type
-        ? links.type.substr(Prefixes.ns_ldp.length) === 'Container'
+        ? links.type.substr(Prefixes.ldp.length) === 'Container'
         : false,
       isMetaData: new URL(links.metadata, url) === url, // @@ sensitive to "http://mydomain..." !== "http://MyDoMaIn..." ?
       metaDataLocation: new URL(links.metadata, url)
@@ -214,7 +214,7 @@ class LdpProxy {
     const path = new URL(url, this.ldpServer);
     const graph = await this.readContainer(path, {});
     const children = graph
-          .getQuads(namedNode(url), namedNode(Prefixes.ns_ldp + 'contains'), null)
+          .getQuads(namedNode(url), namedNode(Prefixes.ldp + 'contains'), null)
           .map(q => new URL(q.object.value));
     for (const childUrl of children) {
       const rstat = await this.rstat(childUrl);
