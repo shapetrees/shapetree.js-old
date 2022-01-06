@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/janeirodigital/footprintlib.js#readme",
   "dependencies": {
-    "parse-link-header": "^1.0.1",
+    "parse-link-header": "^2.0.0",
     "semver": "^7.3.2"
   },
   "devDependencies": {
